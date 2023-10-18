@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudCode.Apis;
 
@@ -14,8 +15,8 @@ namespace HelloWorld
 
     public interface INotificationService
     {
-        Task<string> SendPlayerMessage(IExecutionContext context, string message, string messageType, string playerId)
-        Task<string> SendProjectMessage(IExecutionContext context, string message, string messageType)
+        Task<string> SendPlayerMessage(IExecutionContext context, string message, string messageType, string playerId);
+        Task<string> SendProjectMessage(IExecutionContext context, string message, string messageType);
     }
 
     public class ScoreEventData
@@ -55,7 +56,7 @@ namespace HelloWorld
         {
             Thread.Sleep(9000);
             _logger.LogInformation("Player {PlayerId} logged in at {LastLoginAt}", playerId, lastLoginAt);
-            await _notificationService.SendPlayerMessage(context, pushClient, $"Welcome back! You last logged in at {lastLoginAt}", "WelcomeBack", playerId);
+            await _notificationService.SendPlayerMessage(context,  $"Welcome back! You last logged in at {lastLoginAt}", "WelcomeBack", playerId);
             return "Player message sent";
         }
 
@@ -63,14 +64,14 @@ namespace HelloWorld
         public async Task<string> SendAnnouncement(IExecutionContext context, string message)
         {
             _logger.LogInformation("Sending announcement: {Message}", message);
-            await _notificationService.SendProjectMessage(context, pushClient, message, "");
+            await _notificationService.SendProjectMessage(context, message, "");
             return "Project message sent";
         }
 
         [CloudCodeFunction("AddScore")]
         public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
         {
-            _logger.LogInformation("Adding Score", data.HoopId);
+            _logger.LogInformation("Adding Score {Id}", data.HoopId);
             return await _progressService.AddScore(context, data);
         }
     }
@@ -82,7 +83,7 @@ namespace HelloWorld
             config.Dependencies.AddSingleton(PushClient.Create());
             config.Dependencies.AddSingleton(GameApiClient.Create());
             config.Dependencies.AddSingleton<IProgressService, VRProgressService>();
-            config.Dependencies.AddSingleton<INotificationService, VRProgressService>();
+            config.Dependencies.AddSingleton<INotificationService, VRNotificationService>();
         }
     }
 }

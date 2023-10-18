@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudCode.Apis;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace HelloWorld
 {
@@ -20,6 +22,10 @@ namespace HelloWorld
 
     public class VRProgressService : IProgressService
     {
+        PushClient _pushClient;
+        IGameApiClient _apiClient;
+        ILogger<VRHandlerModule> _logger;
+        
         public VRProgressService(ILogger<VRHandlerModule> logger, IGameApiClient apiClient, PushClient pushClient)
         {
             _pushClient = pushClient;
@@ -27,7 +33,7 @@ namespace HelloWorld
             _logger = logger;
         }
 
-        public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
+        public async Task<int> AddScore(IExecutionContext ctx, ScoreEventData data)
         {
             var result = _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(ctx, ctx.AccessToken, ctx.ProjectId,
                             ctx.ProjectId, null, new List<string> { "progressXP", "spawnDelay", "hoops" });
@@ -36,12 +42,12 @@ namespace HelloWorld
 
             var xp = settings["progressXP"];
             var tick = settings["spawnDelay"];
-            var hoops = JsonSerializer.Deserialize<Hoop[]>(settings["hoops"]);
+            var hoops = JsonSerializer.Deserialize<Hoop[]>((string)settings["hoops"]);
             int score = 0;
 
             foreach (var item in hoops)
             {
-                if item.ID == data.HoopId {
+                if (item.ID == data.HoopId) {
                     score = item.Score;
                     break;
                 }

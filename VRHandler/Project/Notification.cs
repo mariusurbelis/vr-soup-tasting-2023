@@ -11,7 +11,7 @@ namespace HelloWorld
     {
         private readonly PushClient _pushClient;
 
-        public VRProgressService(PushClient pushClient)
+        public VRNotificationService(PushClient pushClient)
         {
             _pushClient = pushClient;
         }

@@ -3636,7 +3636,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2397425259952709510, guid: fa5ef3b56cfeb4f4ba855cdf2610a578, type: 3}
       propertyPath: m_text
-      value: Throw the object on to the platform ahead
+      value: Throw the ball through one of the hoops ahead
       objectReference: {fileID: 0}
     - target: {fileID: 4494524748444649001, guid: fa5ef3b56cfeb4f4ba855cdf2610a578, type: 3}
       propertyPath: m_IsActive
@@ -20203,7 +20203,7 @@ Light:
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 1e-44, y: 1.5447e-41, z: 0, w: 0}
+  m_BoundingSphereOverride: {x: 1e-45, y: 1e-45, z: 1.02e-43, w: 9.968022e+33}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
