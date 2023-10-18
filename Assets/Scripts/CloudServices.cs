@@ -7,23 +7,37 @@ using TMPro;
 using Unity.Services.CloudCode;
 using Unity.Services.CloudCode.Subscriptions;
 using Unity.Services.Core;
+using Unity.Services.RemoteConfig;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class CloudServices : MonoBehaviour
 {
+    private CloudServices _instance;
+
     internal async Task Awake()
     {
+        if (_instance == null)
+        {
+            _instance = this;
+        }
+        else
+        {
+            Destroy(this);
+        }
+
+        if (!Utilities.CheckForInternetConnection()) return;
+
         Debug.Log("Initializing Unity Services...");
 
         await UnityServices.InitializeAsync();
-        
+
         Debug.Log("Unity Services Initialized");
 
         AuthenticationService.Instance.ClearSessionToken();
-        
+
         Debug.Log("Signing in anonymously...");
-        
+
         if (AuthenticationService.Instance.IsSignedIn)
         {
             Debug.Log("Already signed in as: " + AuthenticationService.Instance.PlayerId);
@@ -35,30 +49,89 @@ public class CloudServices : MonoBehaviour
             Debug.Log("Signing in...");
             await SignInAnonymously();
         }
-        
+
         SubscribeToPlayerMessages();
         SubscribeToProjectMessages();
+
+        RemoteConfigService.Instance.FetchCompleted += ApplyRemoteConfig;
+
+        FetchRemoteConfig();
     }
+
+    private struct UserAttributes
+    {
+    }
+
+    private struct AppAttributes
+    {
+    }
+
+    private async void FetchRemoteConfig()
+    {
+        await RemoteConfigService.Instance.FetchConfigsAsync(new UserAttributes(), new AppAttributes());
+    }
+
+    void ApplyRemoteConfig(ConfigResponse configResponse)
+    {
+        // Conditionally update settings, depending on the response's origin:
+        switch (configResponse.requestOrigin)
+        {
+            case ConfigOrigin.Default:
+                Debug.Log("No settings loaded this session and no local cache file exists; using default values.");
+                break;
+            case ConfigOrigin.Cached:
+                Debug.Log("No settings loaded this session; using cached values from a previous session.");
+                break;
+            case ConfigOrigin.Remote:
+                Debug.Log("New settings loaded this session; update values accordingly.");
+                break;
+        }
+
+        ConfigValues.SpawnDelay = RemoteConfigService.Instance.appConfig.GetFloat("spawnDelay");
+        HoopData[] hoops =
+            JsonConvert.DeserializeObject<HoopData[]>(RemoteConfigService.Instance.appConfig.GetJson("hoops"));
+
+        // debug log all hoops
+        foreach (var hoop in hoops)
+        {
+            Debug.Log($"Hoop {hoop.ID} at {hoop.X}, {hoop.Y}, {hoop.Z} with score {hoop.Score}");
+        }
+
+        GameManager.SpawnHoops(hoops);
+
+        // assignmentId = RemoteConfigService.Instance.appConfig.assignmentId;
+    }
+
 
     private void Update()
     {
         if (Keyboard.current.spaceKey.wasReleasedThisFrame)
         {
-            BroadcastMessage("Hello from Unity!");
+            SendMessageToAll("Hello from Unity!");
         }
     }
 
     public TextMeshProUGUI helloLabel;
 
-    private async Task<string> BroadcastMessage(string message)
+    private async Task<string> SendMessageToAll(string message)
     {
         var response = await CloudCodeService.Instance.CallModuleEndpointAsync("VRHandler", "SendAnnouncement",
             new Dictionary<string, object>() { { "message", message } }
         );
-        
+
         return response;
     }
-    
+
+    public static async void CallScoreFunction(int hoopID, int score)
+    {
+        var response = await CloudCodeService.Instance.CallModuleEndpointAsync("VRHandler", "AddScore",
+            new Dictionary<string, object>()
+            {
+                { "hoopId", hoopID }, { "eventTime", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
+                { "hoopScore", score }
+            });
+    }
+
     public async void CallCloudCode()
     {
         // Call out to the RollDice endpoint in the HelloWorld module in Cloud Code
@@ -75,6 +148,7 @@ public class CloudServices : MonoBehaviour
             {
                 stringChars[i] = chars[random.Next(chars.Length)];
             }
+
             return new string(stringChars);
         }
 
@@ -104,10 +178,7 @@ public class CloudServices : MonoBehaviour
     {
         // Register callbacks, which are triggered when a player message is received
         var callbacks = new SubscriptionEventCallbacks();
-        callbacks.MessageReceived += @event =>
-        {
-            PrintWireMessage(@event);
-        };
+        callbacks.MessageReceived += @event => { PrintWireMessage(@event); };
         // callbacks.ConnectionStateChanged += @event =>
         // {
         //     Debug.Log(
@@ -125,7 +196,7 @@ public class CloudServices : MonoBehaviour
     {
         public string data_base64;
     }
-    
+
     void SubscribeToProjectMessages()
     {
         var callbacks = new SubscriptionEventCallbacks();
@@ -141,7 +212,7 @@ public class CloudServices : MonoBehaviour
             Debug.Log(
                 $"Got project subscription Error: {JsonConvert.SerializeObject(@event, Formatting.Indented)}");
         };
-        
+
         CloudCodeService.Instance.SubscribeToProjectMessagesAsync(callbacks);
     }
 
