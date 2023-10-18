@@ -1,0 +1,10 @@
+{
+  "Configs": [
+    {
+      "Name": "player-login",
+      "EventType": "com.unity.services.player-auth.signed-in.v1",
+      "ActionType": "cloud-code",
+      "ActionUrn": "urn:ugs:cloud-code:VRHandler/PlayerLoggedIn"
+    },
+  ]
+}

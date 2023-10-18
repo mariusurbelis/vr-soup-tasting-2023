@@ -1,0 +1,13 @@
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/VRHandler.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/VRHandler.deps.json
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/VRHandler.pdb
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Unity.Services.CloudCode.Apis.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Unity.Services.CloudCode.Core.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Google.Protobuf.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Grpc.Core.Api.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Grpc.Net.Client.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Grpc.Net.Common.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/JsonSubTypes.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Microsoft.Extensions.DependencyInjection.Abstractions.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Microsoft.Extensions.Logging.Abstractions.dll
+/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/module-compilation/Newtonsoft.Json.dll
