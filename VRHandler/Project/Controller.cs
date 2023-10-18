@@ -69,10 +69,10 @@ namespace HelloWorld
         }
 
         [CloudCodeFunction("AddScore")]
-        public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
+        public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
         {
-            _logger.LogInformation("Adding Score {Id}", data.HoopId);
-            return await _progressService.AddScore(context, data);
+            _logger.LogInformation("Adding Score of {Score} at id: {Id}", hoopScore, hoopId);
+            return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
         }
     }
 
