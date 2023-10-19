@@ -26,6 +26,7 @@ namespace HelloWorld
     {
         IGameApiClient _apiClient;
 
+        const string progressXPKey = "progress-xp";
         const string dailyHoopCountKey = "daily-hoop-count";
         const string leaderboardId = "scores";
 
@@ -41,9 +42,9 @@ namespace HelloWorld
 
             var settings = rcResult.Result.Data.Configs.Settings;
 
-            var xp = settings["progressXP"];
+            var xp = (float)settings["progressXP"];
             var tick = settings["spawnDelay"];
-            var hoops = JsonSerializer.Deserialize<Hoop[]>((string)settings["hoops"]);
+            var hoops = (Hoop[])settings["hoops"];
             int score = 0;
 
             if (hoops == null || hoops.Length <= 0)
@@ -61,9 +62,10 @@ namespace HelloWorld
             }
 
             var csResult = await _apiClient.CloudSaveData.GetItemsAsync(
-                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey });
+                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
             var csItem = csResult.Data.Results.First();
             var currentDailyHoopCount = 0;
+            var currentProgressXP = 0;
 
             if (csItem != null)
             {
@@ -75,13 +77,19 @@ namespace HelloWorld
                 }
             }
 
-            await _apiClient.CloudSaveData.SetItemAsync(
-                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new SetItemBody(dailyHoopCountKey, currentDailyHoopCount + 1));
+            var csTask = _apiClient.CloudSaveData.SetItemBatchAsync(
+                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
+                    new(dailyHoopCountKey, currentDailyHoopCount + 1),
+                    new(progressXPKey, currentProgressXP + xp)
+                }
+                ));
 
-            var addScoreResult = await _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
+            var lbTask = _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
                 ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId, new LeaderboardScore(score));
 
-            return (int)addScoreResult.Data.Score;
+            await Task.WhenAll(Task.Run(() => csTask), Task.Run(() => lbTask));
+
+            return (int)lbTask.Result.Data.Score;
         }
     }
 }
