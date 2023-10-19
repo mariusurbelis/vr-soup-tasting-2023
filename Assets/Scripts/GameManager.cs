@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class HoopData
 {
@@ -11,13 +12,16 @@ public class HoopData
     public float X;
     public float Y;
     public float Z;
+    public string Color;
 }
 
 public class GameManager : MonoBehaviour
 {
     public TextMeshProUGUI scoreDisplay;
     public GameObject hoopPrefab;
-
+    public Transform gameInfoContent;
+    public GameObject hoopColorInfoPrefab;
+    
     private static GameManager _instance;
 
     private void Awake()
@@ -35,6 +39,7 @@ public class GameManager : MonoBehaviour
 
     private static List<GameObject> _hoops = new();
     private static List<HoopTarget> _hoopTargets = new();
+    private static List<GameObject> _hoopColorInfo = new();
 
     public static void SpawnHoops(HoopData[] hoops)
     {
@@ -48,6 +53,12 @@ public class GameManager : MonoBehaviour
         {
             _hoopTargets.RemoveAt(i);
         }
+        
+        for (var i = _hoopColorInfo.Count - 1; i >= 0; i--)
+        {
+            Destroy(_hoopColorInfo[i]);
+            _hoopColorInfo.RemoveAt(i);
+        }
 
         foreach (var hoop in hoops)
         {
@@ -58,6 +69,15 @@ public class GameManager : MonoBehaviour
             ht.hoopScore = hoop.Score;
             _hoopTargets.Add(ht);
             _hoops.Add(h);
+            
+            var hci = Instantiate(_instance.hoopColorInfoPrefab, _instance.gameInfoContent);
+            hci.GetComponentInChildren<TextMeshProUGUI>().text = $"Hoop points {hoop.Score}";
+            hci.GetComponentInChildren<Image>().color = ColorUtility.TryParseHtmlString(hoop.Color, out var parsedColor) ? parsedColor : Color.white;
+            
+            foreach (var child in h.GetComponentsInChildren<Renderer>())
+            {
+                child.material.color = ColorUtility.TryParseHtmlString(hoop.Color, out var parsedColorHoop) ? parsedColorHoop : Color.white;
+            }
         }
     }
 }
