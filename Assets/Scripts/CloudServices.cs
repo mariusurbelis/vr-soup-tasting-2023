@@ -14,7 +14,7 @@ using UnityEngine.InputSystem;
 
 public class CloudServices : MonoBehaviour
 {
-    private CloudServices _instance;
+    private static CloudServices _instance;
 
     internal async Task Awake()
     {
@@ -72,12 +72,11 @@ public class CloudServices : MonoBehaviour
     {
         await RemoteConfigService.Instance.FetchConfigsAsync(new UserAttributes(), new AppAttributes());
     }
-    
+
     private async void FetchLeaderboard()
     {
         var scoresResponse = await LeaderboardsService.Instance.GetScoresAsync("scores");
-        
-        Debug.Log($"Got scores: {JsonConvert.SerializeObject(scoresResponse, Formatting.Indented)}");
+        FindObjectOfType<LeaderboardUI>().DisplayScores(scoresResponse.Results.ToArray());
     }
 
     void ApplyRemoteConfig(ConfigResponse configResponse)
@@ -139,6 +138,8 @@ public class CloudServices : MonoBehaviour
                 { "hoopId", hoopID }, { "eventTime", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
                 { "hoopScore", score }
             });
+
+        GameManager.UpdateScoreDisplay(int.Parse(response));
     }
 
     public async void CallCloudCode()
@@ -230,6 +231,13 @@ public class CloudServices : MonoBehaviour
         string jsonMessage = JsonConvert.SerializeObject(@event, Formatting.Indented);
         WireEvent deserializedEvent = JsonConvert.DeserializeObject<WireEvent>(jsonMessage);
         string data = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(deserializedEvent.data_base64));
+
+        switch (data)
+        {
+            case "update-leaderboard":
+                _instance.FetchLeaderboard();
+                break;
+        }
 
         Debug.Log($"Got project subscription at {DateTime.Now.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK")} Message: {data}");
     }
