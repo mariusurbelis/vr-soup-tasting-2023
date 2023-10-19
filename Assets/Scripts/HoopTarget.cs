@@ -8,8 +8,15 @@ public class HoopTarget : MonoBehaviour
     public int id = -1;
     public int hoopScore = 0;
 
-    private readonly HashSet<Collider> _colliders = new();
+    private ParticleSystem[] _particleSystems;
     
+    private readonly HashSet<Collider> _colliders = new();
+
+    private void Start()
+    {
+        _particleSystems = transform.parent.GetComponentsInChildren<ParticleSystem>();
+    }
+
     private HashSet<Collider> GetColliders()
     {
         return _colliders;
@@ -23,6 +30,12 @@ public class HoopTarget : MonoBehaviour
         {
             // Sphere entered and left the trigger a.k.a score happened
             Debug.Log("Score!");
+
+            foreach (var ps in _particleSystems)
+            {
+                ps.Play();
+            }
+                
             CloudServices.CallScoreFunction(id, hoopScore);
         }
 
