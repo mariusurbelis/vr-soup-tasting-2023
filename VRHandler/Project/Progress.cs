@@ -74,7 +74,7 @@ namespace HelloWorld
             {
                 await getTask;
             }
-            catch (Exception ex)
+            catch (AggregateException ex)
             {
                 // TODO: handle the leaderboard 404 API exception on first submit
             }
