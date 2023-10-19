@@ -91,7 +91,8 @@ namespace HelloWorld
                 }
                 catch (Exception ex)
                 {
-                    // TODO: Handle the exception 
+                    // TODO: Handle the exceptions
+                    // Leaderboards request will throw an API Exception if the player has set to submit a score
                 }
                 return Task.CompletedTask;
             });
