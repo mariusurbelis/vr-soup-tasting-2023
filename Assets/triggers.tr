@@ -6,5 +6,12 @@
       "ActionType": "cloud-code",
       "ActionUrn": "urn:ugs:cloud-code:VRHandler/PlayerLoggedIn"
     },
+    
+    {
+      "Name": "leaderboard-reset",
+      "EventType": "com.unity.services.leaderboards.reset.v1",
+      "ActionType": "cloud-code",
+      "ActionUrn": "urn:ugs:cloud-code:VRHandler/ScoreAdded"
+    },
   ]
 }
