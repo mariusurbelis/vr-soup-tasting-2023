@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System;
 using Unity.Services.CloudCode.Shared;
+using System.Linq;
 
 namespace HelloWorld
 {
@@ -31,6 +32,11 @@ namespace HelloWorld
         public VRProgressService(IGameApiClient apiClient)
         {
             _apiClient = apiClient;
+        }
+
+        public interface ITask<T>
+        {
+            Task<T> Do();
         }
 
         public async Task<AddScoreResult> AddScore(IExecutionContext ctx, ScoreEventData data)
@@ -60,33 +66,40 @@ namespace HelloWorld
             double currentScore = 0;
             var currentDailyHoopCount = 0;
             float currentProgressXP = 0;
-
             var csGetTaskResults = new List<Item>();
 
-            try
-            {
-                var csGetTask = _apiClient.CloudSaveData.GetItemsAsync(
-                    ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
-                var lbGetTask = _apiClient.Leaderboards.GetLeaderboardPlayerScoreAsync(
-                    ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId);
+            var tasksFns = new List<Func<Task>>() {
+                new Func<Task>(async () =>
+                {
+                    var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
+                    csGetTaskResults = csGetTask.Data.Results;
+                    return;
+                }),
+                new Func<Task>(async () =>
+                {
+                    var lbGetTask = await _apiClient.Leaderboards.GetLeaderboardPlayerScoreAsync(ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId);
+                    currentScore = lbGetTask.Data.Score;
+                    return;
+                })
+            };
 
-                await Task.WhenAll(csGetTask, lbGetTask);
+            var tasks = tasksFns.Select(async p =>
+            {
+                try
+                {
+                    await p();
+                }
+                catch (Exception ex)
+                {
+                    // TODO: Handle the exception 
+                }
+                return Task.CompletedTask;
+            });
 
-                csGetTaskResults = csGetTask.Result.Data.Results;
-                currentScore = lbGetTask.Result.Data.Score;
-            }
-            catch (AggregateException ex)
-            {
-                // TODO: handle the leaderboard 404 API exception on first submit
-            }
-            catch (ApiException ex)
-            {
-                // TODO: handle the leaderboard 404 API exception on first submit
-            }
-            catch (Exception ex)
-            {
-                // TODO: handle the leaderboard 404 API exception on first submit
-            }
+            // TODO: Attempted to implement something following https://thesharperdev.com/csharps-whenall-and-exception-handling/ though the attempt feels a little ugly
+            // The idea here is to do a number of async requests concurrently, but as some can throw an exception we want to check whether
+            // the exception can be ignored or we need to rethrow it.
+            await Task.WhenAll(tasks);
 
             if (csGetTaskResults.Count > 0)
             {
