@@ -7,6 +7,7 @@ using Unity.Services.Leaderboards.Model;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System;
+using Unity.Services.CloudCode.Shared;
 
 namespace HelloWorld
 {
@@ -66,7 +67,17 @@ namespace HelloWorld
             var lbGetTask = _apiClient.Leaderboards.GetLeaderboardPlayerScoreAsync(
                 ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId);
 
-            await Task.WhenAll(Task.Run(() => csGetTask), Task.Run(() => lbGetTask));
+
+            var getTask = Task.WhenAll(Task.Run(() => csGetTask), Task.Run(() => lbGetTask));
+
+            try
+            {
+                await getTask;
+            }
+            catch (ApiException ex)
+            {
+                // TODO: handle the leaderboard 404 API exception on first submit
+            }
 
             if (csGetTask.Result.Data.Results.Count > 0)
             {
