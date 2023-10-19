@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Linq;
 using System;
+using Newtonsoft.Json.Linq;
 
 namespace HelloWorld
 {
@@ -42,24 +43,22 @@ namespace HelloWorld
 
             var settings = rcResult.Result.Data.Configs.Settings;
 
-            var xp = (float)settings["progressXP"];
+            var xp = Convert.ToSingle(settings["progressXP"]);
             var tick = settings["spawnDelay"];
-            var hoops = (Hoop[])settings["hoops"];
+            var hoops = JsonSerializer.Deserialize<List<Hoop>>(settings["hoops"].ToString());
             int score = 0;
 
-            if (hoops == null || hoops.Length <= 0)
+            if (hoops == null || hoops.Count <= 0)
             {
                 return 0;
             }
 
-            foreach (var item in hoops)
+            var currentHoop = hoops.Find(h => h.ID == data.HoopId);
+            if (currentHoop == null)
             {
-                if (item.ID == data.HoopId)
-                {
-                    score = item.Score;
-                    break;
-                }
+                return 0;
             }
+            score = currentHoop.Score;
 
             var csResult = await _apiClient.CloudSaveData.GetItemsAsync(
                 ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
