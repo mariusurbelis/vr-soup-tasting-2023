@@ -57,6 +57,7 @@ namespace HelloWorld
             }
             score = currentHoop.Score;
 
+            double currentScore = 0;
             var currentDailyHoopCount = 0;
             float currentProgressXP = 0;
 
@@ -88,6 +89,11 @@ namespace HelloWorld
                 }
             }
 
+            if (lbGetTask.Result.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                currentScore = lbGetTask.Result.Data.Score;
+            }
+
             var csUpdateTask = _apiClient.CloudSaveData.SetItemBatchAsync(
                 ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                     new(dailyHoopCountKey, currentDailyHoopCount + 1),
@@ -96,7 +102,7 @@ namespace HelloWorld
                 ));
 
             var lbUpdateTask = _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
-                ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId, new LeaderboardScore(score));
+                ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId, new LeaderboardScore(currentScore + score));
 
             await Task.WhenAll(Task.Run(() => csUpdateTask), Task.Run(() => lbUpdateTask));
 
