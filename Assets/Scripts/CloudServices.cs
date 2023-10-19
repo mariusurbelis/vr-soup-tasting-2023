@@ -7,6 +7,7 @@ using TMPro;
 using Unity.Services.CloudCode;
 using Unity.Services.CloudCode.Subscriptions;
 using Unity.Services.Core;
+using Unity.Services.Leaderboards;
 using Unity.Services.RemoteConfig;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -56,6 +57,7 @@ public class CloudServices : MonoBehaviour
         RemoteConfigService.Instance.FetchCompleted += ApplyRemoteConfig;
 
         FetchRemoteConfig();
+        FetchLeaderboard();
     }
 
     private struct UserAttributes
@@ -69,6 +71,13 @@ public class CloudServices : MonoBehaviour
     private async void FetchRemoteConfig()
     {
         await RemoteConfigService.Instance.FetchConfigsAsync(new UserAttributes(), new AppAttributes());
+    }
+    
+    private async void FetchLeaderboard()
+    {
+        var scoresResponse = await LeaderboardsService.Instance.GetScoresAsync("scores");
+        
+        Debug.Log($"Got scores: {JsonConvert.SerializeObject(scoresResponse, Formatting.Indented)}");
     }
 
     void ApplyRemoteConfig(ConfigResponse configResponse)
