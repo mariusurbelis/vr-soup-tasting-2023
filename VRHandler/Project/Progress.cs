@@ -61,38 +61,49 @@ namespace HelloWorld
             score = currentHoop.Score;
 
             var currentDailyHoopCount = 0;
-            var currentProgressXP = 0;
+            float currentProgressXP = 0;
 
-            var csResult = await _apiClient.CloudSaveData.GetItemsAsync(
+            var csGetTask = _apiClient.CloudSaveData.GetItemsAsync(
                 ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
+            var lbGetTask = _apiClient.Leaderboards.GetLeaderboardPlayerScoreAsync(
+                ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId);
 
-            if (csResult.Data.Results.Count > 0)
+            await Task.WhenAll(Task.Run(() => csGetTask), Task.Run(() => lbGetTask));
+
+            if (csGetTask.Result.Data.Results.Count > 0)
             {
-                var csItem = csResult.Data.Results.First();
-                if (csItem != null)
+                var dailyHoopCountItem = csGetTask.Result.Data.Results.Find((item) => item.Key == dailyHoopCountKey);
+                var progressXPItem = csGetTask.Result.Data.Results.Find((item) => item.Key == progressXPKey);
+
+                if (dailyHoopCountItem != null)
                 {
-                    var lastModified = csItem.Modified;
+                    var lastModified = dailyHoopCountItem.Modified;
                     // Check whether the last value was set today in order to increment
                     if (lastModified.Date?.Date == DateTime.Today)
                     {
-                        currentDailyHoopCount = (int)csItem.Value;
+                        currentDailyHoopCount = Convert.ToInt32(dailyHoopCountItem.Value);
                     }
+                }
+
+                if (progressXPItem != null)
+                {
+                    currentProgressXP = Convert.ToSingle(progressXPItem.Value);
                 }
             }
 
-            var csTask = _apiClient.CloudSaveData.SetItemBatchAsync(
+            var csUpdateTask = _apiClient.CloudSaveData.SetItemBatchAsync(
                 ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                     new(dailyHoopCountKey, currentDailyHoopCount + 1),
                     new(progressXPKey, currentProgressXP + xp)
                 }
                 ));
 
-            var lbTask = _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
+            var lbUpdateTask = _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
                 ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId, new LeaderboardScore(score));
 
-            await Task.WhenAll(Task.Run(() => csTask), Task.Run(() => lbTask));
+            await Task.WhenAll(Task.Run(() => csUpdateTask), Task.Run(() => lbUpdateTask));
 
-            return (int)lbTask.Result.Data.Score;
+            return (int)lbUpdateTask.Result.Data.Score;
         }
     }
 }
