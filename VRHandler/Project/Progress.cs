@@ -60,19 +60,23 @@ namespace HelloWorld
             }
             score = currentHoop.Score;
 
-            var csResult = await _apiClient.CloudSaveData.GetItemsAsync(
-                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
-            var csItem = csResult.Data.Results.First();
             var currentDailyHoopCount = 0;
             var currentProgressXP = 0;
 
-            if (csItem != null)
+            var csResult = await _apiClient.CloudSaveData.GetItemsAsync(
+                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
+
+            if (csResult.Data.Results.Count > 0)
             {
-                var lastModified = csItem.Modified;
-                // Check whether the last value was set today in order to increment
-                if (lastModified.Date?.Date == DateTime.Today)
+                var csItem = csResult.Data.Results.First();
+                if (csItem != null)
                 {
-                    currentDailyHoopCount = (int)csItem.Value;
+                    var lastModified = csItem.Modified;
+                    // Check whether the last value was set today in order to increment
+                    if (lastModified.Date?.Date == DateTime.Today)
+                    {
+                        currentDailyHoopCount = (int)csItem.Value;
+                    }
                 }
             }
 

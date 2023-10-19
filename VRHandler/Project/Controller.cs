@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudCode.Apis;
+using System;
 
 namespace HelloWorld
 {
@@ -56,7 +57,7 @@ namespace HelloWorld
         {
             Thread.Sleep(9000);
             _logger.LogInformation("Player {PlayerId} logged in at {LastLoginAt}", playerId, lastLoginAt);
-            await _notificationService.SendPlayerMessage(context,  $"Welcome back! You last logged in at {lastLoginAt}", "WelcomeBack", playerId);
+            await _notificationService.SendPlayerMessage(context, $"Welcome back! You last logged in at {lastLoginAt}", "WelcomeBack", playerId);
             return "Player message sent";
         }
 
@@ -71,8 +72,17 @@ namespace HelloWorld
         [CloudCodeFunction("AddScore")]
         public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
         {
-            _logger.LogInformation("Adding Score of {Score} at id: {Id}", hoopScore, hoopId);
-            return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
+            _logger.LogInformation("Adding Score of {Score} at id: {HoopId}", hoopScore, hoopId);
+            try
+            {
+                return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failure when adding score: {Err}", ex.ToString());
+                throw;
+            }
+
         }
     }
 
