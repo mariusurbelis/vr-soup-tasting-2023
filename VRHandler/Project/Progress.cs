@@ -24,7 +24,6 @@ namespace HelloWorld
     public class VRProgressService : IProgressService
     {
         IGameApiClient _apiClient;
-
         const string progressXPKey = "progress-xp";
         const string dailyHoopCountKey = "daily-hoop-count";
         const string leaderboardId = "scores";
@@ -62,17 +61,19 @@ namespace HelloWorld
             var currentDailyHoopCount = 0;
             float currentProgressXP = 0;
 
-            var csGetTask = _apiClient.CloudSaveData.GetItemsAsync(
-                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
-            var lbGetTask = _apiClient.Leaderboards.GetLeaderboardPlayerScoreAsync(
-                ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId);
-
-
-            var getTask = Task.WhenAll(Task.Run(() => csGetTask), Task.Run(() => lbGetTask));
+            var csGetTaskResults = new List<Item>();
 
             try
             {
-                await getTask;
+                var csGetTask = _apiClient.CloudSaveData.GetItemsAsync(
+                    ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
+                var lbGetTask = _apiClient.Leaderboards.GetLeaderboardPlayerScoreAsync(
+                    ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId);
+
+                await Task.WhenAll(csGetTask, lbGetTask);
+
+                csGetTaskResults = csGetTask.Result.Data.Results;
+                currentScore = lbGetTask.Result.Data.Score;
             }
             catch (AggregateException ex)
             {
@@ -87,10 +88,10 @@ namespace HelloWorld
                 // TODO: handle the leaderboard 404 API exception on first submit
             }
 
-            if (csGetTask.Result.Data.Results.Count > 0)
+            if (csGetTaskResults.Count > 0)
             {
-                var dailyHoopCountItem = csGetTask.Result.Data.Results.Find((item) => item.Key == dailyHoopCountKey);
-                var progressXPItem = csGetTask.Result.Data.Results.Find((item) => item.Key == progressXPKey);
+                var dailyHoopCountItem = csGetTaskResults.Find((item) => item.Key == dailyHoopCountKey);
+                var progressXPItem = csGetTaskResults.Find((item) => item.Key == progressXPKey);
 
                 if (dailyHoopCountItem != null)
                 {
@@ -108,17 +109,12 @@ namespace HelloWorld
                 }
             }
 
-            if (lbGetTask.Result.StatusCode == System.Net.HttpStatusCode.OK)
-            {
-                currentScore = lbGetTask.Result.Data.Score;
-            }
-
             var csUpdateTask = _apiClient.CloudSaveData.SetItemBatchAsync(
                 ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                     new(dailyHoopCountKey, currentDailyHoopCount + 1),
                     new(progressXPKey, currentProgressXP + xp)
                 }
-                ));
+            ));
 
             var lbUpdateTask = _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
                 ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId, new LeaderboardScore(currentScore + score));
