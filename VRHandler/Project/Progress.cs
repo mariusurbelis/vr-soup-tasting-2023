@@ -15,9 +15,9 @@ namespace HelloWorld
         [JsonPropertyName("id")] public int ID { get; set; }
         [JsonPropertyName("score")] public int Score { get; set; }
 
-        [JsonPropertyName("x")] public int PosX { get; set; }
-        [JsonPropertyName("y")] public int PosY { get; set; }
-        [JsonPropertyName("z")] public int PosZ { get; set; }
+        [JsonPropertyName("x")] public float PosX { get; set; }
+        [JsonPropertyName("y")] public float PosY { get; set; }
+        [JsonPropertyName("z")] public float PosZ { get; set; }
     }
 
     public class VRProgressService : IProgressService
@@ -102,7 +102,7 @@ namespace HelloWorld
 
             return new AddScoreResult
             {
-                Score = (int)lbUpdateTask.Result.Data.Score,
+                Score = lbUpdateTask.Result.Data.Score,
                 Rank = lbUpdateTask.Result.Data.Rank
             };
         }
