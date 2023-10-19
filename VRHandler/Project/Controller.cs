@@ -69,6 +69,14 @@ namespace HelloWorld
             return "Project message sent";
         }
 
+        [CloudCodeFunction("ScoreAdded")]
+        public async Task<string> ScoreAdded(IExecutionContext context, string leaderboardId)
+        {
+            _logger.LogInformation("Leaderboard updated: {LeaderboardId}", leaderboardId);
+            await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
+            return "Update leaderboard message sent";
+        }
+
         [CloudCodeFunction("AddScore")]
         public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
         {
