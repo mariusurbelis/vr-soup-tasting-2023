@@ -1,15 +1,12 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudSave.Model;
 using Unity.Services.Leaderboards.Model;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Linq;
 using System;
-using Newtonsoft.Json.Linq;
 
 namespace HelloWorld
 {
@@ -36,7 +33,7 @@ namespace HelloWorld
             _apiClient = apiClient;
         }
 
-        public async Task<int> AddScore(IExecutionContext ctx, ScoreEventData data)
+        public async Task<AddScoreResult> AddScore(IExecutionContext ctx, ScoreEventData data)
         {
             var rcResult = _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(ctx, ctx.AccessToken, ctx.ProjectId,
                             ctx.ProjectId, null, new List<string> { "progressXP", "spawnDelay", "hoops" });
@@ -50,13 +47,13 @@ namespace HelloWorld
 
             if (hoops == null || hoops.Count <= 0)
             {
-                return 0;
+                return new AddScoreResult();
             }
 
             var currentHoop = hoops.Find(h => h.ID == data.HoopId);
             if (currentHoop == null)
             {
-                return 0;
+                return new AddScoreResult();
             }
             score = currentHoop.Score;
 
@@ -103,7 +100,11 @@ namespace HelloWorld
 
             await Task.WhenAll(Task.Run(() => csUpdateTask), Task.Run(() => lbUpdateTask));
 
-            return (int)lbUpdateTask.Result.Data.Score;
+            return new AddScoreResult
+            {
+                Score = (int)lbUpdateTask.Result.Data.Score,
+                Rank = lbUpdateTask.Result.Data.Rank
+            };
         }
     }
 }

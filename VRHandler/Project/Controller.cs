@@ -11,7 +11,7 @@ namespace HelloWorld
 {
     public interface IProgressService
     {
-        Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
+        Task<AddScoreResult> AddScore(IExecutionContext ctx, ScoreEventData data);
     }
 
     public interface INotificationService
@@ -30,6 +30,12 @@ namespace HelloWorld
 
         [JsonProperty("eventTime")]
         public long EventTime { get; set; }
+    }
+
+    public class AddScoreResult
+    {
+        public double Score { get; set; }
+        public int Rank { get; set; }
     }
 
     public class VRHandlerModule
@@ -70,20 +76,26 @@ namespace HelloWorld
         }
 
         [CloudCodeFunction("ScoreAdded")]
-        public async Task<string> ScoreAdded(IExecutionContext context, string leaderboardId)
+        public async Task<string> ScoreAdded(IExecutionContext context)
         {
-            _logger.LogInformation("Leaderboard updated: {LeaderboardId}", leaderboardId);
+            _logger.LogInformation("Leaderboard updated");
             await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
             return "Update leaderboard message sent";
         }
 
         [CloudCodeFunction("AddScore")]
-        public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
+        public async Task<double> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
         {
             _logger.LogInformation("Adding Score of {Score} at id: {HoopId}", hoopScore, hoopId);
             try
             {
-                return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
+                var result = await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
+
+                if (result.Rank <= 10)
+                {
+                    await ScoreAdded(context);
+                }
+                return result.Score;
             }
             catch (Exception ex)
             {
