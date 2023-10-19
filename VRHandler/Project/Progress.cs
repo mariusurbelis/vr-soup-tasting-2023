@@ -78,6 +78,14 @@ namespace HelloWorld
             {
                 // TODO: handle the leaderboard 404 API exception on first submit
             }
+            catch (ApiException ex)
+            {
+                // TODO: handle the leaderboard 404 API exception on first submit
+            }
+            catch (Exception ex)
+            {
+                // TODO: handle the leaderboard 404 API exception on first submit
+            }
 
             if (csGetTask.Result.Data.Results.Count > 0)
             {
