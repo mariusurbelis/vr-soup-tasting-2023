@@ -102,6 +102,7 @@ namespace HelloWorld
             var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
                 context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                     new(sessionStartKey, DateTime.Now.ToString()),
+                    new(sessionScoreKey, 0),
                 }
             ));
 
