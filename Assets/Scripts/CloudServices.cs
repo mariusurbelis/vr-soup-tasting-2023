@@ -102,6 +102,7 @@ public class CloudServices : MonoBehaviour
 
         ConfigValues.SpawnDelay = RemoteConfigService.Instance.appConfig.GetFloat("spawnDelay");
         ConfigValues.SessionTime = RemoteConfigService.Instance.appConfig.GetFloat("sessionLength");
+        ConfigValues.ProgressXP = RemoteConfigService.Instance.appConfig.GetFloat("progressXP");
 
         //GameManager.UpdateGameTimer(ConfigValues.SessionTime);
 
@@ -117,12 +118,6 @@ public class CloudServices : MonoBehaviour
         GameManager.SpawnHoops(hoops);
 
         // assignmentId = RemoteConfigService.Instance.appConfig.assignmentId;
-    }
-
-
-    private void Update()
-    {
-
     }
 
     public TextMeshProUGUI helloLabel;
@@ -298,6 +293,7 @@ public class CloudServices : MonoBehaviour
             case "reward":
                 Debug.Log("Reward received!");
                 GameManager.UpdateXPDisplay(await GetXP());
+                GameManager.GetReward($"{ConfigValues.ProgressXP} XP");
                 break;
         }
 

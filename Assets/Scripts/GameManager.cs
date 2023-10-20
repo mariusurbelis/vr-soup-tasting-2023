@@ -29,6 +29,8 @@ public class GameManager : MonoBehaviour
     public Button startButton;
     public Transform gameInfoContent;
     public GameObject hoopColorInfoPrefab;
+    public GameObject rewardPanel;
+    public TextMeshProUGUI rewardText;
 
     private static GameManager _instance;
 
@@ -114,6 +116,17 @@ public class GameManager : MonoBehaviour
     public static void UpdateGameTimerDisplay(float timeLeft)
     {
         _instance.gameTimerDisplay.text = timeLeft.ToString("F2") + "s";
+    }
+
+    public static void GetReward(string reward)
+    {
+        _instance.rewardText.text = reward;
+        _instance.rewardPanel.SetActive(true);
+    }
+
+    public void CloseRewardPanel()
+    {
+        _instance.rewardPanel.SetActive(false);
     }
 
     public static void SpawnHoops(HoopData[] hoops)
