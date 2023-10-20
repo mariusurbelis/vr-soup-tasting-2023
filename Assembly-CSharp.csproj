@@ -133,6 +133,7 @@
      <None Include="Assets/TextMesh Pro/Shaders/TMPro_Surface.cginc" />
      <Folder Include="Assets/TextMesh Pro/Shaders" />
      <Folder Include="Assets/Settings/Project Configuration" />
+     <Folder Include="Assets/Graphics" />
      <Folder Include="Assets/VRTemplateAssets/Tutorial" />
      <Folder Include="Assets/TextMesh Pro/Resources/Style Sheets" />
      <Folder Include="Assets/TextMesh Pro/Fonts" />
