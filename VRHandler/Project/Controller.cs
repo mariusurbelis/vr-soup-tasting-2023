@@ -11,7 +11,9 @@ namespace HelloWorld
 {
     public interface IProgressService
     {
+        Task<bool> StartSession(IExecutionContext ctx);
         Task<AddScoreResult> AddScore(IExecutionContext ctx, ScoreEventData data);
+        Task<bool> EndSession(IExecutionContext ctx);
     }
 
     public interface INotificationService
@@ -71,6 +73,7 @@ namespace HelloWorld
         {
             _logger.LogInformation("Player {PlayerId} started the game", playerId);
             // TODO: reset player's sessionScore and sessionTime
+            await _progressService.StartSession(context);
             return "ok";
         }
 
