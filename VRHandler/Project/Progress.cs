@@ -62,10 +62,10 @@ namespace HelloWorld
             }
         }
 
-        public async Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext context)
+        public async Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext context, string leaderboardId, string leaderboardVersionId)
         {
-            var lbQueryTask = await _apiClient.Leaderboards.GetLeaderboardScoresAsync(
-                context, context.ServiceToken, Guid.Parse(context.ProjectId), leaderboardId, 0, 1);
+            var lbQueryTask = await _apiClient.Leaderboards.GetLeaderboardVersionScoresAsync(
+                context, context.ServiceToken, Guid.Parse(context.ProjectId), leaderboardId, leaderboardVersionId, null, 1);
 
             if (lbQueryTask.Data.Results.Count <= 0)
             {
@@ -185,7 +185,7 @@ namespace HelloWorld
             async Task GetCloudSaveData()
             {
                 var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
-                    context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey, dailyHoopCountKey });
+                    context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey, dailyHoopCountKey, progressXPKey });
                 csGetTaskResults = csGetTask.Data.Results;
             }
 

@@ -15,7 +15,7 @@ namespace HelloWorld
         Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
         Task<EndSessionResult> EndSession(IExecutionContext ctx);
 
-        Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext ctx);
+        Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext ctx, string leaderboardId, string leaderboardVersionId);
     }
 
     public interface INotificationService
@@ -99,7 +99,7 @@ namespace HelloWorld
 
                 if (result.Rank <= 10)
                 {
-                    await ScoreAdded(context);
+                    await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
                 }
                 return "ok";
             }
@@ -127,12 +127,6 @@ namespace HelloWorld
             return "Project message sent";
         }
 
-        [CloudCodeFunction("ScoreAdded")]
-        public async Task<bool> ScoreAdded(IExecutionContext context)
-        {
-            return await LeaderboardReset(context);
-        }
-
         [CloudCodeFunction("AddScore")]
         public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
         {
@@ -150,17 +144,17 @@ namespace HelloWorld
         }
 
         [CloudCodeFunction("LeaderboardReset")]
-        public async Task<bool> LeaderboardReset(IExecutionContext context)
+        public async Task<bool> LeaderboardReset(IExecutionContext context, string leaderboardId, string leaderboardVersionId)
         {
             try
             {
-                var result = await _progressService.LeaderboardReset(context);
+                await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
+
+                var result = await _progressService.LeaderboardReset(context, leaderboardId, leaderboardVersionId);
 
                 _logger.LogInformation($"Leaderboard reset: {result.PlayerId} rewarded");
 
                 await _notificationService.SendPlayerMessage(context, "reward", "", result.PlayerId);
-
-                await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
 
                 return true;
             }
