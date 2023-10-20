@@ -84,6 +84,7 @@ public class GameManager : MonoBehaviour
                 transparentWall.SetActive(true);
                 startButton.interactable = true;
                 //sphereSpawner.SetActive(false);
+                CloudServices.CallEndGameFunction();
                 _gameTimer = 0;
                 UpdateGameTimerDisplay(0);
             }
@@ -143,7 +144,9 @@ public class GameManager : MonoBehaviour
             _hoops.Add(h);
 
             var hci = Instantiate(_instance.hoopColorInfoPrefab, _instance.gameInfoContent);
-            hci.GetComponentInChildren<TextMeshProUGUI>().text = $"Hoop points {hoop.Score}";
+
+            hci.GetComponentInChildren<TextMeshProUGUI>().text = $"Hoop is worth {hoop.Score} point" + (hoop.Score != 1 ? "s" : "");
+
             hci.GetComponentInChildren<Image>().color = ColorUtility.TryParseHtmlString(hoop.Color, out var parsedColor)
                 ? parsedColor
                 : Color.white;
