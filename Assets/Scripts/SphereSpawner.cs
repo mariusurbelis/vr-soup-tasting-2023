@@ -21,6 +21,11 @@ public class SphereSpawner : MonoBehaviour
 
     private void Update()
     {
+        if (!GameManager.InGame) {
+            HandleEndGame();
+            return;
+        }
+
         timer = GetColliders().Count == 0 ? timer - Time.deltaTime : ConfigValues.SpawnDelay;
 
         if (timer < 0)
@@ -40,6 +45,19 @@ public class SphereSpawner : MonoBehaviour
                 _spheres.RemoveAt(i);
             }
         }
+    }
+
+    private void HandleEndGame()
+    {
+        foreach (var sphere in _colliders)
+        {
+            Destroy(sphere);
+        }
+        _colliders.Clear();
+
+        timer = 0;
+
+        gameObject.SetActive(false);
     }
 
     private void SpawnSphere()

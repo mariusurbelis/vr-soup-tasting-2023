@@ -97,7 +97,9 @@ public class CloudServices : MonoBehaviour
         }
 
         ConfigValues.SpawnDelay = RemoteConfigService.Instance.appConfig.GetFloat("spawnDelay");
-        ConfigValues.SessionTime = RemoteConfigService.Instance.appConfig.GetFloat("sessionTime");
+        ConfigValues.SessionTime = RemoteConfigService.Instance.appConfig.GetFloat("sessionLength");
+
+        //GameManager.UpdateGameTimer(ConfigValues.SessionTime);
 
         HoopData[] hoops =
             JsonConvert.DeserializeObject<HoopData[]>(RemoteConfigService.Instance.appConfig.GetJson("hoops"));
@@ -116,10 +118,7 @@ public class CloudServices : MonoBehaviour
 
     private void Update()
     {
-        if (Keyboard.current.spaceKey.wasReleasedThisFrame)
-        {
-            SendMessageToAll("Hello from Unity!");
-        }
+        
     }
 
     public TextMeshProUGUI helloLabel;
@@ -152,9 +151,15 @@ public class CloudServices : MonoBehaviour
                        {
                 { "eventTime", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }
             });
-
         return response == "ok";
     }
+
+    public static async Task<bool> CallEndGameFunction() =>
+        await CloudCodeService.Instance.CallModuleEndpointAsync("VRHandler", "EndGame",
+                       new Dictionary<string, object>()
+                       {
+                { "eventTime", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }
+            }) == "ok";
 
     public async void CallCloudCode()
     {

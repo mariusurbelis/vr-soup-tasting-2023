@@ -9,7 +9,7 @@ public class HoopTarget : MonoBehaviour
     public int hoopScore = 0;
 
     private ParticleSystem[] _particleSystems;
-    
+
     private readonly HashSet<Collider> _colliders = new();
 
     private void Start()
@@ -29,14 +29,20 @@ public class HoopTarget : MonoBehaviour
         if (other.gameObject.CompareTag("Sphere"))
         {
             // Sphere entered and left the trigger a.k.a score happened
-            Debug.Log("Score!");
 
-            foreach (var ps in _particleSystems)
+            if (GameManager.InGame)
             {
-                ps.Play();
+                Debug.Log("Score!");
+
+                foreach (var ps in _particleSystems)
+                {
+                    ps.Play();
+                }
+
+                CloudServices.CallScoreFunction(id, hoopScore);
             }
-                
-            CloudServices.CallScoreFunction(id, hoopScore);
+
+            other.gameObject.tag = "Untagged";
         }
 
         _colliders.Remove(other);
