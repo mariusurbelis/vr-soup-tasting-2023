@@ -118,7 +118,7 @@ public class CloudServices : MonoBehaviour
 
     private void Update()
     {
-        
+
     }
 
     public TextMeshProUGUI helloLabel;
@@ -255,6 +255,9 @@ public class CloudServices : MonoBehaviour
         {
             case "update-leaderboard":
                 _instance.FetchLeaderboard();
+                break;
+            case "reward":
+                Debug.Log("Reward received!");
                 break;
         }
 
