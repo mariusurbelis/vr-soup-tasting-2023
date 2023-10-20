@@ -12,8 +12,8 @@ namespace HelloWorld
     public interface IProgressService
     {
         Task<bool> StartSession(IExecutionContext ctx);
-        Task<AddScoreResult> AddScore(IExecutionContext ctx, ScoreEventData data);
-        Task<bool> EndSession(IExecutionContext ctx);
+        Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
+        Task<EndSessionResult> EndSession(IExecutionContext ctx);
     }
 
     public interface INotificationService
@@ -34,7 +34,7 @@ namespace HelloWorld
         public long EventTime { get; set; }
     }
 
-    public class AddScoreResult
+    public class EndSessionResult
     {
         public double Score { get; set; }
         public int Rank { get; set; }
@@ -83,7 +83,22 @@ namespace HelloWorld
             _logger.LogInformation("Player {PlayerId} ended the game", playerId);
             // TODO: validate player's score
             // TODO: submit player's sessionScore to leaderboard
-            return "ok";
+
+            try
+            {
+                var result = await _progressService.EndSession(context);
+
+                if (result.Rank <= 10)
+                {
+                    await ScoreAdded(context);
+                }
+                return "ok";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failure when adding score: {Err}", ex.ToString());
+                throw;
+            }
         }
 
         [CloudCodeFunction("PlayerLoggedIn")]
@@ -112,18 +127,12 @@ namespace HelloWorld
         }
 
         [CloudCodeFunction("AddScore")]
-        public async Task<double> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
+        public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
         {
             _logger.LogInformation("Adding Score of {Score} at id: {HoopId}", hoopScore, hoopId);
             try
             {
-                var result = await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
-
-                if (result.Rank <= 10)
-                {
-                    await ScoreAdded(context);
-                }
-                return result.Score;
+                return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
             }
             catch (Exception ex)
             {

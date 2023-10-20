@@ -7,7 +7,7 @@ using Unity.Services.Leaderboards.Model;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System;
-using Unity.Services.CloudCode.Shared;
+using Microsoft.Extensions.Logging;
 using System.Linq;
 
 namespace HelloWorld
@@ -25,6 +25,8 @@ namespace HelloWorld
     public class VRProgressService : IProgressService
     {
         IGameApiClient _apiClient;
+        private readonly ILogger<VRHandlerModule> _logger;
+
 
         const string configKeySessionLength = "sessionLength";
         const string configKeyHoops = "hoops";
@@ -36,8 +38,9 @@ namespace HelloWorld
         const string sessionScoreKey = "sessionScore";
         const string leaderboardId = "scores";
 
-        public VRProgressService(IGameApiClient apiClient)
+        public VRProgressService(ILogger<VRHandlerModule> logger, IGameApiClient apiClient)
         {
+            _logger = logger;
             _apiClient = apiClient;
         }
 
@@ -85,12 +88,16 @@ namespace HelloWorld
 
             if (sessionStartItem != null)
             {
-                var lastModified = sessionStartItem.Modified;
-                if (DateTime.Now.AddMinutes(sessionLength) > lastModified.Date?.Date)
+                var lastModified = sessionStartItem.Modified.Date;
+                if (DateTime.Now < lastModified?.AddSeconds(sessionLength))
                 {
-                    return false;
+                    throw new Exception("Session already started");
                 }
+
+                _logger.LogDebug($"Expired session, {lastModified}");
             }
+
+            _logger.LogDebug($"New session started, {DateTime.Now}");
 
             var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
                 context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
@@ -101,10 +108,11 @@ namespace HelloWorld
             return true;
         }
 
-        public async Task<bool> EndSession(IExecutionContext context)
+        public async Task<EndSessionResult> EndSession(IExecutionContext context)
         {
             var csGetTaskResults = new List<Item>();
             var sessionScore = 0;
+            var rank = 0;
 
             var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
                     context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey });
@@ -121,18 +129,23 @@ namespace HelloWorld
             {
                 var lbUpdateTask = await _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
                     context, context.AccessToken, Guid.Parse(context.ProjectId), leaderboardId, context.PlayerId, new LeaderboardScore(sessionScore));
+
+                rank = lbUpdateTask.Data.Rank;
             }
 
-            return true;
+            return new EndSessionResult
+            {
+                Score = sessionScore,
+                Rank = rank
+            };
         }
 
 
-        public async Task<bool> AddScore(IExecutionContext context, ScoreEventData data)
+        public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
         {
             var csGetTaskResults = new List<Item>();
             float sessionLength = 0;
             var hoops = new List<Hoop>();
-            int sessionScore = 0;
             int hoopScore = 0;
             float progressXP = 0;
             float currentProgressXP = 0;
@@ -161,9 +174,13 @@ namespace HelloWorld
             var currentHoop = hoops.Find(h => h.ID == data.HoopId);
             if (currentHoop == null)
             {
-                return false;
+                throw new Exception($"Hoop with ID {data.HoopId} not found");
             }
             hoopScore = currentHoop.Score;
+            if (hoopScore != data.HoopScore)
+            {
+                throw new Exception("Hoop scores do not match");
+            }
 
             if (csGetTaskResults.Count > 0)
             {
@@ -174,10 +191,12 @@ namespace HelloWorld
 
                 if (sessionStartItem != null)
                 {
-                    var lastModified = sessionStartItem.Modified;
-                    if (DateTime.Now.AddMinutes(sessionLength) > lastModified.Date?.Date)
+                    var lastModified = sessionStartItem.Modified.Date;
+                    _logger.LogDebug($"session info, current: {DateTime.Now} started: {lastModified}, ends: {lastModified?.AddSeconds(sessionLength)}");
+
+                    if (lastModified != null && DateTime.Now > lastModified?.AddMinutes(sessionLength))
                     {
-                        return false;
+                        throw new Exception("Not within session");
                     }
                 }
 
@@ -198,19 +217,21 @@ namespace HelloWorld
 
                 if (sessionScoreItem != null)
                 {
-                    sessionScore = Convert.ToInt32(sessionScoreItem.Value);
+                    currentSessionScore = Convert.ToInt32(sessionScoreItem.Value);
                 }
             }
+
+            var score = currentSessionScore + hoopScore;
 
             var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
                 context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                     new(dailyHoopCountKey, currentDailyHoopCount + 1),
                     new(progressXPKey, currentProgressXP + progressXP),
-                    new(sessionScoreKey, currentSessionScore + sessionScore),
+                    new(sessionScoreKey, score),
                 }
             ));
 
-            return true;
+            return score;
         }
     }
 }
