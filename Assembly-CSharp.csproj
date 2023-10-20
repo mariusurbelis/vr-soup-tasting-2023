@@ -888,6 +888,9 @@
     <Reference Include="Unity.VisualScripting.Core.Editor">
       <HintPath>Library\ScriptAssemblies\Unity.VisualScripting.Core.Editor.dll</HintPath>
     </Reference>
+    <Reference Include="Unity.Services.CloudSave.Editor">
+      <HintPath>Library\ScriptAssemblies\Unity.Services.CloudSave.Editor.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.Services.CloudCode">
       <HintPath>Library\ScriptAssemblies\Unity.Services.CloudCode.dll</HintPath>
     </Reference>
@@ -959,6 +962,9 @@
     </Reference>
     <Reference Include="Unity.Services.Leaderboards.Editor">
       <HintPath>Library\ScriptAssemblies\Unity.Services.Leaderboards.Editor.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.Services.CloudSave">
+      <HintPath>Library\ScriptAssemblies\Unity.Services.CloudSave.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

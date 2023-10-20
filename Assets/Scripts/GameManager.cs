@@ -21,6 +21,7 @@ public class HoopData
 public class GameManager : MonoBehaviour
 {
     public TextMeshProUGUI scoreDisplay;
+    public TextMeshProUGUI xpDisplay;
     public TextMeshProUGUI gameTimerDisplay;
     public GameObject hoopPrefab;
     public GameObject transparentWall;
@@ -97,6 +98,11 @@ public class GameManager : MonoBehaviour
                 StartGame();
             }
         }
+    }
+
+    public static void UpdateXPDisplay(int xp)
+    {
+        _instance.xpDisplay.text = $"Your XP: {xp}";
     }
 
     public static void UpdateGameTimer(float timer)

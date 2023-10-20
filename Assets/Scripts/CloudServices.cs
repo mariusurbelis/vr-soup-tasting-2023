@@ -6,6 +6,8 @@ using Newtonsoft.Json;
 using TMPro;
 using Unity.Services.CloudCode;
 using Unity.Services.CloudCode.Subscriptions;
+using Unity.Services.CloudSave;
+using Unity.Services.CloudSave.Models;
 using Unity.Services.Core;
 using Unity.Services.Leaderboards;
 using Unity.Services.RemoteConfig;
@@ -59,6 +61,8 @@ public class CloudServices : MonoBehaviour
 
         FetchRemoteConfig();
         FetchLeaderboard();
+
+        GameManager.UpdateXPDisplay(await GetXP());
     }
 
     private struct UserAttributes
@@ -142,6 +146,41 @@ public class CloudServices : MonoBehaviour
             });
 
         GameManager.UpdateScoreDisplay(int.Parse(response));
+    }
+
+    public static async Task<int> GetXP()
+    {
+        const string key = "progressXP";
+
+        try
+        {
+            var results = await CloudSaveService.Instance.Data.Player.LoadAsync(
+                new HashSet<string> { key }
+            );
+
+            if (results.TryGetValue(key, out var item))
+            {
+                return item.Value.GetAs<int>();
+            }
+            else
+            {
+                Debug.Log($"There is no such key as {key}!");
+            }
+        }
+        catch (CloudSaveValidationException e)
+        {
+            Debug.LogError(e);
+        }
+        catch (CloudSaveRateLimitedException e)
+        {
+            Debug.LogError(e);
+        }
+        catch (CloudSaveException e)
+        {
+            Debug.LogError(e);
+        }
+
+        return 0;
     }
 
     public static async Task<bool> CallStartGameFunction()
@@ -245,7 +284,7 @@ public class CloudServices : MonoBehaviour
         CloudCodeService.Instance.SubscribeToProjectMessagesAsync(callbacks);
     }
 
-    private static void PrintWireMessage(IMessageReceivedEvent @event)
+    private static async void PrintWireMessage(IMessageReceivedEvent @event)
     {
         string jsonMessage = JsonConvert.SerializeObject(@event, Formatting.Indented);
         WireEvent deserializedEvent = JsonConvert.DeserializeObject<WireEvent>(jsonMessage);
@@ -258,6 +297,7 @@ public class CloudServices : MonoBehaviour
                 break;
             case "reward":
                 Debug.Log("Reward received!");
+                GameManager.UpdateXPDisplay(await GetXP());
                 break;
         }
 
