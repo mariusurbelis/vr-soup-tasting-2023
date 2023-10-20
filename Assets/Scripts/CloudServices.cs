@@ -19,6 +19,8 @@ public class CloudServices : MonoBehaviour
 {
     private static CloudServices _instance;
 
+    private static List<ScoreEventData> sessionScores;
+
     internal async Task Awake()
     {
         if (_instance == null)
@@ -62,6 +64,8 @@ public class CloudServices : MonoBehaviour
         FetchRemoteConfig();
         FetchLeaderboard();
 
+        sessionScores = new List<ScoreEventData>();
+
         GameManager.UpdateXPDisplay(await GetXP());
     }
 
@@ -71,6 +75,13 @@ public class CloudServices : MonoBehaviour
 
     private struct AppAttributes
     {
+    }
+
+    public struct ScoreEventData
+    {
+        public int HoopId { get; set; }
+        public int HoopScore { get; set; }
+        public long EventTime { get; set; }
     }
 
     private async void FetchRemoteConfig()
@@ -133,6 +144,10 @@ public class CloudServices : MonoBehaviour
 
     public static async void CallScoreFunction(int hoopID, int score)
     {
+        CallScoreFunctionV2(hoopID, score);
+
+        return;
+
         var response = await CloudCodeService.Instance.CallModuleEndpointAsync("VRHandler", "AddScore",
             new Dictionary<string, object>()
             {
@@ -141,6 +156,16 @@ public class CloudServices : MonoBehaviour
             });
 
         GameManager.UpdateScoreDisplay(int.Parse(response));
+    }
+
+    public static async void CallScoreFunctionV2(int hoopID, int score)
+    {
+        sessionScores.Add(new ScoreEventData
+        {
+            HoopId = hoopID,
+            HoopScore = score,
+            EventTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        });
     }
 
     public static async Task<int> GetXP()
@@ -180,6 +205,8 @@ public class CloudServices : MonoBehaviour
 
     public static async Task<bool> CallStartGameFunction()
     {
+        sessionScores.Clear();
+
         var response = await CloudCodeService.Instance.CallModuleEndpointAsync("VRHandler", "StartGame",
                        new Dictionary<string, object>()
                        {
@@ -194,6 +221,14 @@ public class CloudServices : MonoBehaviour
                        {
                 { "eventTime", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }
             }) == "ok";
+
+    public static async Task<bool> CallEndGameWithScoresFunction() =>
+        await CloudCodeService.Instance.CallModuleEndpointAsync("VRHandler", "EndGameWithScores",
+            new Dictionary<string, object>()
+            {
+                { "scores", sessionScores }
+            }
+        ) == "ok";
 
     public async void CallCloudCode()
     {

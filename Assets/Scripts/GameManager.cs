@@ -87,7 +87,8 @@ public class GameManager : MonoBehaviour
                 transparentWall.SetActive(true);
                 startButton.interactable = true;
                 //sphereSpawner.SetActive(false);
-                CloudServices.CallEndGameFunction();
+                //CloudServices.CallEndGameFunction();
+                CloudServices.CallEndGameWithScoresFunction();
                 _gameTimer = 0;
                 UpdateGameTimerDisplay(0);
             }

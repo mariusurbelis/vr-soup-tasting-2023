@@ -74,6 +74,8 @@ namespace HelloWorld
 
             var entry = lbQueryTask.Data.Results[0];
 
+            // TODO: update the XP on the top player
+
             return new LeaderboardResetResult
             {
                 TopScore = entry.Score,
@@ -160,6 +162,137 @@ namespace HelloWorld
             };
         }
 
+        public async Task<EndSessionResult> EndSessionWithScores(IExecutionContext context, ScoreEventData[] data)
+        {
+            var csGetTaskResults = new List<Item>();
+            float sessionLength = 0;
+            var hoops = new List<Hoop>();
+            int sessionScore = 0;
+            int hoopCount = 0;
+            //float progressXP = 0;
+            //float currentProgressXP = 0;
+            var currentDailyHoopCount = 0;
+            var currentSessionScore = 0;
+            DateTime? sessionStart = new DateTime();
+
+            async Task GetRemoteConfig()
+            {
+                var rcResult = await _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId,
+                                context.EnvironmentId, null, new List<string> { configKeySessionLength, configKeyHoops });
+                var settings = rcResult.Data.Configs.Settings;
+                sessionLength = Convert.ToSingle(settings[configKeySessionLength]);
+                //progressXP = Convert.ToSingle(settings[configKeyProgressXP]);
+                hoops = JsonSerializer.Deserialize<List<Hoop>>(settings[configKeyHoops].ToString());
+            }
+
+            async Task GetCloudSaveData()
+            {
+                var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
+                    context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey, dailyHoopCountKey, progressXPKey });
+                csGetTaskResults = csGetTask.Data.Results;
+            }
+
+            await AwaitBatch(new List<Func<Task>>() { GetCloudSaveData, GetRemoteConfig });
+
+            if (csGetTaskResults.Count > 0)
+            {
+                var dailyHoopCountItem = csGetTaskResults.Find((item) => item.Key == dailyHoopCountKey);
+                //var progressXPItem = csGetTaskResults.Find((item) => item.Key == progressXPKey);
+                var sessionScoreItem = csGetTaskResults.Find((item) => item.Key == sessionScoreKey);
+                var sessionStartItem = csGetTaskResults.Find((item) => item.Key == sessionStartKey);
+
+                if (sessionStartItem == null)
+                {
+                    throw new Exception("A game session was not started");
+                }
+                else
+                {
+                    sessionStart = sessionStartItem.Modified.Date;
+
+                    if (DateTime.Now > sessionStart?.AddSeconds(sessionLength).AddSeconds(5))
+                    {
+                        throw new Exception("End game session submission expired");
+                    }
+                }
+
+                if (dailyHoopCountItem != null)
+                {
+                    var lastModified = dailyHoopCountItem.Modified;
+                    // Check whether the last value was set today in order to increment
+                    if (lastModified.Date?.Date == DateTime.Today)
+                    {
+                        currentDailyHoopCount = Convert.ToInt32(dailyHoopCountItem.Value);
+                    }
+                }
+
+                // if (progressXPItem != null)
+                // {
+                //     currentProgressXP = Convert.ToSingle(progressXPItem.Value);
+                // }
+
+                if (sessionScoreItem != null)
+                {
+                    currentSessionScore = Convert.ToInt32(sessionScoreItem.Value);
+                }
+            }
+
+            var sessionStartEpochTime = new DateTimeOffset((DateTime)sessionStart).ToUnixTimeMilliseconds();
+            var sessionEndEpochTime = new DateTimeOffset((DateTime)(sessionStart?.AddSeconds(sessionLength))).ToUnixTimeMilliseconds();
+
+            foreach (var item in data)
+            {
+                var currentHoop = hoops.Find(h => h.ID == item.HoopId);
+                if (currentHoop == null)
+                {
+                    throw new Exception($"Hoop with ID {item.HoopId} not found");
+                }
+                if (currentHoop.Score != item.HoopScore)
+                {
+                    throw new Exception("Hoop scores do not match");
+                }
+                if (item.EventTime < sessionStartEpochTime || item.EventTime > sessionEndEpochTime)
+                {
+                    throw new Exception($"Hoop scored outside session window, eventTime: {item.EventTime}, sessionStart: {sessionStartEpochTime}, sessionEnd: {sessionEndEpochTime}");
+                }
+
+                sessionScore += currentHoop.Score;
+                hoopCount++;
+            }
+
+            var score = currentSessionScore + sessionScore;
+            var rank = 0;
+
+            if (score <= 0)
+            {
+                return new EndSessionResult();
+            }
+
+            async Task UpdateLeaderboard()
+            {
+                var lbUpdateTask = await _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
+                    context, context.AccessToken, Guid.Parse(context.ProjectId), leaderboardId, context.PlayerId, new LeaderboardScore(sessionScore));
+
+                rank = lbUpdateTask.Data.Rank;
+            }
+
+            async Task UpdateCloudSaveData()
+            {
+                await _apiClient.CloudSaveData.SetItemBatchAsync(
+                    context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
+                        new(dailyHoopCountKey, currentDailyHoopCount + hoopCount),
+                        // new(progressXPKey, currentProgressXP + progressXP),
+                    }
+                ));
+            }
+
+            await AwaitBatch(new List<Func<Task>>() { UpdateLeaderboard, UpdateCloudSaveData });
+
+            return new EndSessionResult
+            {
+                Score = score,
+                Rank = rank,
+            };
+        }
 
         public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
         {

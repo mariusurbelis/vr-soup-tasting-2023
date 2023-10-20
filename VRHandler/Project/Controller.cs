@@ -14,7 +14,7 @@ namespace HelloWorld
         Task<bool> StartSession(IExecutionContext ctx);
         Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
         Task<EndSessionResult> EndSession(IExecutionContext ctx);
-
+        Task<EndSessionResult> EndSessionWithScores(IExecutionContext ctx, ScoreEventData[] data);
         Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext ctx, string leaderboardId, string leaderboardVersionId);
     }
 
@@ -90,9 +90,6 @@ namespace HelloWorld
         public async Task<string> EndGame(IExecutionContext context, string playerId)
         {
             _logger.LogInformation("Player {PlayerId} ended the game", playerId);
-            // TODO: validate player's score
-            // TODO: submit player's sessionScore to leaderboard
-
             try
             {
                 var result = await _progressService.EndSession(context);
@@ -109,6 +106,28 @@ namespace HelloWorld
                 throw;
             }
         }
+
+        [CloudCodeFunction("EndGameWithScores")]
+        public async Task<string> EndGameWithScores(IExecutionContext context, ScoreEventData[] scores)
+        {
+            _logger.LogInformation("Player {PlayerId} ended the game", context.PlayerId);
+            try
+            {
+                var result = await _progressService.EndSessionWithScores(context, scores);
+
+                if (result.Rank <= 10)
+                {
+                    await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
+                }
+                return "ok";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failure when adding score: {Err}", ex.ToString());
+                throw;
+            }
+        }
+
 
         [CloudCodeFunction("PlayerLoggedIn")]
         public async Task<string> PlayerLoggedIn(IExecutionContext context, string playerId, string lastLoginAt)
@@ -140,7 +159,6 @@ namespace HelloWorld
                 _logger.LogError("Failure when adding score: {Err}", ex.ToString());
                 throw;
             }
-
         }
 
         [CloudCodeFunction("LeaderboardReset")]
