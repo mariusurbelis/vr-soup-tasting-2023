@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class HoopData
@@ -20,11 +21,20 @@ public class HoopData
 public class GameManager : MonoBehaviour
 {
     public TextMeshProUGUI scoreDisplay;
+    public TextMeshProUGUI gameTimerDisplay;
     public GameObject hoopPrefab;
+    public GameObject transparentWall;
+    public GameObject sphereSpawner;
+    public Button startButton;
     public Transform gameInfoContent;
     public GameObject hoopColorInfoPrefab;
 
     private static GameManager _instance;
+
+    public static bool InGame => _instance._gameStarted;
+
+    private bool _gameStarted = false;
+    private float _gameTimer = 0;
 
     private void Awake()
     {
@@ -37,6 +47,8 @@ public class GameManager : MonoBehaviour
             // Destroy this instance if another one already exists
             Destroy(this);
         }
+
+        UpdateGameTimerDisplay(0);
     }
 
     private static List<GameObject> _hoops = new();
@@ -46,6 +58,55 @@ public class GameManager : MonoBehaviour
     public static void UpdateScoreDisplay(int score)
     {
         _instance.scoreDisplay.text = $"Your score: {score}";
+    }
+
+    public async void StartGame()
+    {
+        if (!await CloudServices.CallStartGameFunction()) return;
+
+        transparentWall.SetActive(false);
+        startButton.interactable = false;
+        sphereSpawner.SetActive(true);
+        _gameTimer = ConfigValues.SessionTime;
+        _gameStarted = true;
+    }
+
+    private void Update()
+    {
+        if (_gameStarted)
+        {
+            _gameTimer -= Time.deltaTime;
+            UpdateGameTimerDisplay(_gameTimer);
+
+            if (_gameTimer < 0)
+            {
+                _gameStarted = false;
+                transparentWall.SetActive(true);
+                startButton.interactable = true;
+                //sphereSpawner.SetActive(false);
+                _gameTimer = 0;
+                UpdateGameTimerDisplay(0);
+            }
+        }
+
+        if (Keyboard.current.spaceKey.wasReleasedThisFrame)
+        {
+            if (!_gameStarted)
+            {
+                StartGame();
+            }
+        }
+    }
+
+    public static void UpdateGameTimer(float timer)
+    {
+        _instance._gameTimer = timer;
+        UpdateGameTimerDisplay(timer);
+    }
+
+    public static void UpdateGameTimerDisplay(float timeLeft)
+    {
+        _instance.gameTimerDisplay.text = timeLeft.ToString("F2") + "s";
     }
 
     public static void SpawnHoops(HoopData[] hoops)
