@@ -62,6 +62,25 @@ namespace HelloWorld
             }
         }
 
+        public async Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext context)
+        {
+            var lbQueryTask = await _apiClient.Leaderboards.GetLeaderboardScoresAsync(
+                context, context.ServiceToken, Guid.Parse(context.ProjectId), leaderboardId, 0, 1);
+
+            if (lbQueryTask.Data.Results.Count <= 0)
+            {
+                throw new Exception("No leaderboard entries");
+            }
+
+            var entry = lbQueryTask.Data.Results[0];
+
+            return new LeaderboardResetResult
+            {
+                TopScore = entry.Score,
+                PlayerId = entry.PlayerId
+            };
+        }
+
         public async Task<bool> StartSession(IExecutionContext context)
         {
             var csGetTaskResults = new List<Item>();

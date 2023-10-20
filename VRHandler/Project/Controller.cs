@@ -14,6 +14,8 @@ namespace HelloWorld
         Task<bool> StartSession(IExecutionContext ctx);
         Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
         Task<EndSessionResult> EndSession(IExecutionContext ctx);
+
+        Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext ctx);
     }
 
     public interface INotificationService
@@ -38,6 +40,13 @@ namespace HelloWorld
     {
         public double Score { get; set; }
         public int Rank { get; set; }
+    }
+
+    public class LeaderboardResetResult
+    {
+        public double TopScore { get; set; }
+
+        public string PlayerId { get; set; }
     }
 
     public class VRHandlerModule
@@ -119,11 +128,9 @@ namespace HelloWorld
         }
 
         [CloudCodeFunction("ScoreAdded")]
-        public async Task<string> ScoreAdded(IExecutionContext context)
+        public async Task<bool> ScoreAdded(IExecutionContext context)
         {
-            _logger.LogInformation("Leaderboard updated");
-            await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
-            return "Update leaderboard message sent";
+            return await LeaderboardReset(context);
         }
 
         [CloudCodeFunction("AddScore")]
@@ -140,6 +147,28 @@ namespace HelloWorld
                 throw;
             }
 
+        }
+
+        [CloudCodeFunction("LeaderboardReset")]
+        public async Task<bool> LeaderboardReset(IExecutionContext context)
+        {
+            try
+            {
+                var result = await _progressService.LeaderboardReset(context);
+
+                _logger.LogInformation($"Leaderboard reset: {result.PlayerId} rewarded");
+
+                await _notificationService.SendPlayerMessage(context, "reward", "", result.PlayerId);
+
+                await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failure when handling leaderboard reset: {Err}", ex.ToString());
+                throw;
+            }
         }
     }
 
