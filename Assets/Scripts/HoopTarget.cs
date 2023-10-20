@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class HoopTarget : MonoBehaviour
 {
@@ -15,6 +16,14 @@ public class HoopTarget : MonoBehaviour
     private void Start()
     {
         _particleSystems = transform.parent.GetComponentsInChildren<ParticleSystem>();
+    }
+
+    private void Update()
+    {
+        if (Keyboard.current.sKey.wasReleasedThisFrame)
+        {
+            CloudServices.CallScoreFunction(id, hoopScore);
+        }
     }
 
     private HashSet<Collider> GetColliders()
