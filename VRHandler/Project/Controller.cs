@@ -58,6 +58,31 @@ namespace HelloWorld
             return $"Hello, {name}!";
         }
 
+        [CloudCodeFunction("PlayerRegistered")] // TODO: this function is called by the auth trigger
+        public async Task<string> PlayerRegistered(IExecutionContext context, string playerId)
+        {
+            _logger.LogInformation("Player {PlayerId} registered", playerId);
+            await _notificationService.SendPlayerMessage(context, "Welcome to the game!", "Welcome", playerId);
+            return "Player message sent";
+        }
+
+        [CloudCodeFunction("StartGame")]
+        public async Task<string> StartGame(IExecutionContext context, string playerId)
+        {
+            _logger.LogInformation("Player {PlayerId} started the game", playerId);
+            // TODO: reset player's sessionScore and sessionTime
+            return "ok";
+        }
+
+        [CloudCodeFunction("EndGame")]
+        public async Task<string> EndGame(IExecutionContext context, string playerId)
+        {
+            _logger.LogInformation("Player {PlayerId} ended the game", playerId);
+            // TODO: validate player's score
+            // TODO: submit player's sessionScore to leaderboard
+            return "ok";
+        }
+
         [CloudCodeFunction("PlayerLoggedIn")]
         public async Task<string> PlayerLoggedIn(IExecutionContext context, string playerId, string lastLoginAt)
         {

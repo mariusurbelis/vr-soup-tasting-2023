@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/Project.csproj": {}
+    "C:\\Users\\mariu\\DEV\\vr-soup-tasting-2023\\VRHandler\\Project\\Project.csproj": {}
   },
   "projects": {
-    "/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/Project.csproj": {
+    "C:\\Users\\mariu\\DEV\\vr-soup-tasting-2023\\VRHandler\\Project\\Project.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/Project.csproj",
+        "projectUniqueName": "C:\\Users\\mariu\\DEV\\vr-soup-tasting-2023\\VRHandler\\Project\\Project.csproj",
         "projectName": "VRHandler",
-        "projectPath": "/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/Project.csproj",
-        "packagesPath": "/Users/marius.urbelis/.nuget/packages/",
-        "outputPath": "/Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/obj/",
+        "projectPath": "C:\\Users\\mariu\\DEV\\vr-soup-tasting-2023\\VRHandler\\Project\\Project.csproj",
+        "packagesPath": "C:\\Users\\mariu\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\mariu\\DEV\\vr-soup-tasting-2023\\VRHandler\\Project\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/marius.urbelis/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\mariu\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net5.0"
@@ -53,8 +53,7 @@
             "net47",
             "net471",
             "net472",
-            "net48",
-            "net481"
+            "net48"
           ],
           "assetTargetFallback": true,
           "warn": true,
@@ -66,6 +65,10 @@
             {
               "name": "Microsoft.NETCore.App.Ref",
               "version": "[5.0.0, 5.0.0]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[5.0.0, 5.0.0]"
             }
           ],
           "frameworkReferences": {
@@ -73,7 +76,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/7.0.402/RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.123\\RuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {

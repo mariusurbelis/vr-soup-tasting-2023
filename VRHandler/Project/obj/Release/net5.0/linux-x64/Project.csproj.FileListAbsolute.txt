@@ -10,3 +10,15 @@
 /Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/obj/Release/net5.0/linux-x64/refint/VRHandler.dll
 /Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/obj/Release/net5.0/linux-x64/VRHandler.pdb
 /Users/marius.urbelis/DEV/VR Soup Tasting/VRHandler/Project/obj/Release/net5.0/linux-x64/ref/VRHandler.dll
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\bin\Release\net5.0\linux-x64\VRHandler.deps.json
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\bin\Release\net5.0\linux-x64\VRHandler.dll
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\bin\Release\net5.0\linux-x64\ref\VRHandler.dll
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\bin\Release\net5.0\linux-x64\VRHandler.pdb
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\Project.csproj.AssemblyReference.cache
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\Project.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\Project.AssemblyInfoInputs.cache
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\Project.AssemblyInfo.cs
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\Project.csproj.CoreCompileInputs.cache
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\VRHandler.dll
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\ref\VRHandler.dll
+C:\Users\mariu\DEV\vr-soup-tasting-2023\VRHandler\Project\obj\Release\net5.0\linux-x64\VRHandler.pdb
