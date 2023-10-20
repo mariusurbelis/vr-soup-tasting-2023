@@ -20,11 +20,18 @@ public class HoopData
 public class GameManager : MonoBehaviour
 {
     public TextMeshProUGUI scoreDisplay;
+    public TextMeshProUGUI gameTimer;
     public GameObject hoopPrefab;
+    public GameObject transparentWall;
+    public GameObject sphereSpawner;
+    public GameObject startButton;
     public Transform gameInfoContent;
     public GameObject hoopColorInfoPrefab;
 
     private static GameManager _instance;
+
+    private bool _gameStarted = false;
+    private float _gameTimer = 0;
 
     private void Awake()
     {
@@ -37,6 +44,8 @@ public class GameManager : MonoBehaviour
             // Destroy this instance if another one already exists
             Destroy(this);
         }
+
+        UpdateGameTimer(0);
     }
 
     private static List<GameObject> _hoops = new();
@@ -46,6 +55,40 @@ public class GameManager : MonoBehaviour
     public static void UpdateScoreDisplay(int score)
     {
         _instance.scoreDisplay.text = $"Your score: {score}";
+    }
+
+    public async void StartGame()
+    {
+        if (!await CloudServices.CallStartGameFunction()) return;
+
+        transparentWall.SetActive(false);
+        startButton.SetActive(false);
+        sphereSpawner.SetActive(true);
+        _gameStarted = true;
+        _gameTimer = ConfigValues.SessionTime;
+    }
+
+    private void Update()
+    {
+        if (_gameStarted)
+        {
+            _gameTimer -= Time.deltaTime;
+            UpdateGameTimer((int) _gameTimer);
+
+            if (_gameTimer <= 0)
+            {
+                _gameStarted = false;
+                transparentWall.SetActive(true);
+                startButton.SetActive(true);
+                sphereSpawner.SetActive(false);
+                _gameTimer = 0;
+            }
+        }
+    }
+
+    public static void UpdateGameTimer(float timeLeft)
+    {
+        _instance.gameTimer.text = $"{timeLeft:0.00}";
     }
 
     public static void SpawnHoops(HoopData[] hoops)

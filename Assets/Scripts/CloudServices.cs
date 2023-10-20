@@ -11,6 +11,7 @@ using Unity.Services.Leaderboards;
 using Unity.Services.RemoteConfig;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Text;
 
 public class CloudServices : MonoBehaviour
 {
@@ -96,6 +97,8 @@ public class CloudServices : MonoBehaviour
         }
 
         ConfigValues.SpawnDelay = RemoteConfigService.Instance.appConfig.GetFloat("spawnDelay");
+        ConfigValues.SessionTime = RemoteConfigService.Instance.appConfig.GetFloat("sessionTime");
+
         HoopData[] hoops =
             JsonConvert.DeserializeObject<HoopData[]>(RemoteConfigService.Instance.appConfig.GetJson("hoops"));
 
@@ -140,6 +143,17 @@ public class CloudServices : MonoBehaviour
             });
 
         GameManager.UpdateScoreDisplay(int.Parse(response));
+    }
+
+    public static async Task<bool> CallStartGameFunction()
+    {
+        var response = await CloudCodeService.Instance.CallModuleEndpointAsync("VRHandler", "StartGame",
+                       new Dictionary<string, object>()
+                       {
+                { "eventTime", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }
+            });
+
+        return response == "ok";
     }
 
     public async void CallCloudCode()
