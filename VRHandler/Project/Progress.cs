@@ -27,10 +27,12 @@ namespace HelloWorld
         IGameApiClient _apiClient;
         private readonly ILogger<VRHandlerModule> _logger;
 
-
+        const string configKeySpawnDelay = "spawnDelay";
         const string configKeySessionLength = "sessionLength";
         const string configKeyHoops = "hoops";
-        const string configKeyProgressXP = "progressXP";
+        // TODO: implement once Remote-Config supports serviceToken
+        //const string configKeyProgressXP = "progressXP";
+        const float progressXP = 10;
 
         const string progressXPKey = "progressXP";
         const string dailyHoopCountKey = "dailyHoopScores";
@@ -62,6 +64,18 @@ namespace HelloWorld
             }
         }
 
+        public async Task<bool> InitializePlayer(IExecutionContext context, string playerId)
+        {
+            await _apiClient.CloudSaveData.SetItemBatchAsync(
+                context, context.ServiceToken, context.ProjectId, playerId, new SetItemBatchBody(new List<SetItemBody>{
+                    new(progressXPKey, 0),
+                    new(dailyHoopCountKey, 0)
+                }
+            ));
+
+            return true;
+        }
+
         public async Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext context, string leaderboardId, string leaderboardVersionId)
         {
             var lbQueryTask = await _apiClient.Leaderboards.GetLeaderboardVersionScoresAsync(
@@ -72,9 +86,26 @@ namespace HelloWorld
                 throw new Exception("No leaderboard entries");
             }
 
-            var entry = lbQueryTask.Data.Results[0];
+            var entry = lbQueryTask.Data.Results.First();
 
-            // TODO: update the XP on the top player
+            var csGetTaskResults = new List<Item>();
+            var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.ServiceToken, context.ProjectId,
+                    entry.PlayerId, new List<string> { progressXPKey });
+            csGetTaskResults = csGetTask.Data.Results;
+
+            float currentProgressXP = 0;
+
+            var progressXPItem = csGetTaskResults.Find((item) => item.Key == progressXPKey);
+            if (progressXPItem != null)
+            {
+                currentProgressXP = Convert.ToSingle(progressXPItem.Value);
+            }
+
+            await _apiClient.CloudSaveData.SetItemBatchAsync(
+                context, context.ServiceToken, context.ProjectId, entry.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
+                    new(progressXPKey, currentProgressXP + progressXP),
+                }
+            ));
 
             return new LeaderboardResetResult
             {
@@ -165,12 +196,11 @@ namespace HelloWorld
         public async Task<EndSessionResult> EndSessionWithScores(IExecutionContext context, ScoreEventData[] data)
         {
             var csGetTaskResults = new List<Item>();
+            float spawnDelay = 0;
             float sessionLength = 0;
             var hoops = new List<Hoop>();
             int sessionScore = 0;
             int hoopCount = 0;
-            //float progressXP = 0;
-            //float currentProgressXP = 0;
             var currentDailyHoopCount = 0;
             var currentSessionScore = 0;
             DateTime? sessionStart = new DateTime();
@@ -178,10 +208,10 @@ namespace HelloWorld
             async Task GetRemoteConfig()
             {
                 var rcResult = await _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId,
-                                context.EnvironmentId, null, new List<string> { configKeySessionLength, configKeyHoops });
+                                context.EnvironmentId, null, new List<string> { configKeySessionLength, configKeyHoops, configKeySpawnDelay });
                 var settings = rcResult.Data.Configs.Settings;
+                spawnDelay = Convert.ToSingle(settings[configKeySpawnDelay]);
                 sessionLength = Convert.ToSingle(settings[configKeySessionLength]);
-                //progressXP = Convert.ToSingle(settings[configKeyProgressXP]);
                 hoops = JsonSerializer.Deserialize<List<Hoop>>(settings[configKeyHoops].ToString());
             }
 
@@ -197,7 +227,6 @@ namespace HelloWorld
             if (csGetTaskResults.Count > 0)
             {
                 var dailyHoopCountItem = csGetTaskResults.Find((item) => item.Key == dailyHoopCountKey);
-                //var progressXPItem = csGetTaskResults.Find((item) => item.Key == progressXPKey);
                 var sessionScoreItem = csGetTaskResults.Find((item) => item.Key == sessionScoreKey);
                 var sessionStartItem = csGetTaskResults.Find((item) => item.Key == sessionStartKey);
 
@@ -225,15 +254,17 @@ namespace HelloWorld
                     }
                 }
 
-                // if (progressXPItem != null)
-                // {
-                //     currentProgressXP = Convert.ToSingle(progressXPItem.Value);
-                // }
-
                 if (sessionScoreItem != null)
                 {
                     currentSessionScore = Convert.ToInt32(sessionScoreItem.Value);
                 }
+            }
+
+            var totalPossibleHoops = sessionLength / spawnDelay;
+
+            if (data.Length > Math.Ceiling(totalPossibleHoops))
+            {
+                throw new Exception("Given hoop count exceeds possible hoop count");
             }
 
             var sessionStartEpochTime = new DateTimeOffset((DateTime)sessionStart).ToUnixTimeMilliseconds();
@@ -280,7 +311,6 @@ namespace HelloWorld
                 await _apiClient.CloudSaveData.SetItemBatchAsync(
                     context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                         new(dailyHoopCountKey, currentDailyHoopCount + hoopCount),
-                        // new(progressXPKey, currentProgressXP + progressXP),
                     }
                 ));
             }
@@ -294,97 +324,97 @@ namespace HelloWorld
             };
         }
 
-        public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
-        {
-            var csGetTaskResults = new List<Item>();
-            float sessionLength = 0;
-            var hoops = new List<Hoop>();
-            int hoopScore = 0;
-            float progressXP = 0;
-            float currentProgressXP = 0;
-            var currentDailyHoopCount = 0;
-            var currentSessionScore = 0;
+        // public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
+        // {
+        //     var csGetTaskResults = new List<Item>();
+        //     float sessionLength = 0;
+        //     var hoops = new List<Hoop>();
+        //     int hoopScore = 0;
+        //     float progressXP = 0;
+        //     float currentProgressXP = 0;
+        //     var currentDailyHoopCount = 0;
+        //     var currentSessionScore = 0;
 
-            async Task GetRemoteConfig()
-            {
-                var rcResult = await _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId,
-                                context.EnvironmentId, null, new List<string> { configKeySessionLength, configKeyHoops, configKeyProgressXP });
-                var settings = rcResult.Data.Configs.Settings;
-                sessionLength = Convert.ToSingle(settings[configKeySessionLength]);
-                progressXP = Convert.ToSingle(settings[configKeyProgressXP]);
-                hoops = JsonSerializer.Deserialize<List<Hoop>>(settings[configKeyHoops].ToString());
-            }
+        //     async Task GetRemoteConfig()
+        //     {
+        //         var rcResult = await _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId,
+        //                         context.EnvironmentId, null, new List<string> { configKeySessionLength, configKeyHoops, configKeyProgressXP });
+        //         var settings = rcResult.Data.Configs.Settings;
+        //         sessionLength = Convert.ToSingle(settings[configKeySessionLength]);
+        //         progressXP = Convert.ToSingle(settings[configKeyProgressXP]);
+        //         hoops = JsonSerializer.Deserialize<List<Hoop>>(settings[configKeyHoops].ToString());
+        //     }
 
-            async Task GetCloudSaveData()
-            {
-                var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
-                    context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey, dailyHoopCountKey, progressXPKey });
-                csGetTaskResults = csGetTask.Data.Results;
-            }
+        //     async Task GetCloudSaveData()
+        //     {
+        //         var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
+        //             context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey, dailyHoopCountKey, progressXPKey });
+        //         csGetTaskResults = csGetTask.Data.Results;
+        //     }
 
-            await AwaitBatch(new List<Func<Task>>() { GetCloudSaveData, GetRemoteConfig });
+        //     await AwaitBatch(new List<Func<Task>>() { GetCloudSaveData, GetRemoteConfig });
 
-            var currentHoop = hoops.Find(h => h.ID == data.HoopId);
-            if (currentHoop == null)
-            {
-                throw new Exception($"Hoop with ID {data.HoopId} not found");
-            }
-            hoopScore = currentHoop.Score;
-            if (hoopScore != data.HoopScore)
-            {
-                throw new Exception("Hoop scores do not match");
-            }
+        //     var currentHoop = hoops.Find(h => h.ID == data.HoopId);
+        //     if (currentHoop == null)
+        //     {
+        //         throw new Exception($"Hoop with ID {data.HoopId} not found");
+        //     }
+        //     hoopScore = currentHoop.Score;
+        //     if (hoopScore != data.HoopScore)
+        //     {
+        //         throw new Exception("Hoop scores do not match");
+        //     }
 
-            if (csGetTaskResults.Count > 0)
-            {
-                var dailyHoopCountItem = csGetTaskResults.Find((item) => item.Key == dailyHoopCountKey);
-                var progressXPItem = csGetTaskResults.Find((item) => item.Key == progressXPKey);
-                var sessionScoreItem = csGetTaskResults.Find((item) => item.Key == sessionScoreKey);
-                var sessionStartItem = csGetTaskResults.Find((item) => item.Key == sessionStartKey);
+        //     if (csGetTaskResults.Count > 0)
+        //     {
+        //         var dailyHoopCountItem = csGetTaskResults.Find((item) => item.Key == dailyHoopCountKey);
+        //         var progressXPItem = csGetTaskResults.Find((item) => item.Key == progressXPKey);
+        //         var sessionScoreItem = csGetTaskResults.Find((item) => item.Key == sessionScoreKey);
+        //         var sessionStartItem = csGetTaskResults.Find((item) => item.Key == sessionStartKey);
 
-                if (sessionStartItem != null)
-                {
-                    var lastModified = sessionStartItem.Modified.Date;
-                    _logger.LogDebug($"session info, current: {DateTime.Now} started: {lastModified}, ends: {lastModified?.AddSeconds(sessionLength)}");
+        //         if (sessionStartItem != null)
+        //         {
+        //             var lastModified = sessionStartItem.Modified.Date;
+        //             _logger.LogDebug($"session info, current: {DateTime.Now} started: {lastModified}, ends: {lastModified?.AddSeconds(sessionLength)}");
 
-                    if (lastModified != null && DateTime.Now > lastModified?.AddMinutes(sessionLength))
-                    {
-                        throw new Exception("Not within session");
-                    }
-                }
+        //             if (lastModified != null && DateTime.Now > lastModified?.AddMinutes(sessionLength))
+        //             {
+        //                 throw new Exception("Not within session");
+        //             }
+        //         }
 
-                if (dailyHoopCountItem != null)
-                {
-                    var lastModified = dailyHoopCountItem.Modified;
-                    // Check whether the last value was set today in order to increment
-                    if (lastModified.Date?.Date == DateTime.Today)
-                    {
-                        currentDailyHoopCount = Convert.ToInt32(dailyHoopCountItem.Value);
-                    }
-                }
+        //         if (dailyHoopCountItem != null)
+        //         {
+        //             var lastModified = dailyHoopCountItem.Modified;
+        //             // Check whether the last value was set today in order to increment
+        //             if (lastModified.Date?.Date == DateTime.Today)
+        //             {
+        //                 currentDailyHoopCount = Convert.ToInt32(dailyHoopCountItem.Value);
+        //             }
+        //         }
 
-                if (progressXPItem != null)
-                {
-                    currentProgressXP = Convert.ToSingle(progressXPItem.Value);
-                }
+        //         if (progressXPItem != null)
+        //         {
+        //             currentProgressXP = Convert.ToSingle(progressXPItem.Value);
+        //         }
 
-                if (sessionScoreItem != null)
-                {
-                    currentSessionScore = Convert.ToInt32(sessionScoreItem.Value);
-                }
-            }
+        //         if (sessionScoreItem != null)
+        //         {
+        //             currentSessionScore = Convert.ToInt32(sessionScoreItem.Value);
+        //         }
+        //     }
 
-            var score = currentSessionScore + hoopScore;
+        //     var score = currentSessionScore + hoopScore;
 
-            var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
-                context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
-                    new(dailyHoopCountKey, currentDailyHoopCount + 1),
-                    new(progressXPKey, currentProgressXP + progressXP),
-                    new(sessionScoreKey, score),
-                }
-            ));
+        //     var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
+        //         context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
+        //             new(dailyHoopCountKey, currentDailyHoopCount + 1),
+        //             new(progressXPKey, currentProgressXP + progressXP),
+        //             new(sessionScoreKey, score),
+        //         }
+        //     ));
 
-            return score;
-        }
+        //     return score;
+        // }
     }
 }

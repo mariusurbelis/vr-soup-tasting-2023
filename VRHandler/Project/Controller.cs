@@ -11,8 +11,9 @@ namespace HelloWorld
 {
     public interface IProgressService
     {
+        Task<bool> InitializePlayer(IExecutionContext ctx, string playerId);
         Task<bool> StartSession(IExecutionContext ctx);
-        Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
+        //Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
         Task<EndSessionResult> EndSession(IExecutionContext ctx);
         Task<EndSessionResult> EndSessionWithScores(IExecutionContext ctx, ScoreEventData[] data);
         Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext ctx, string leaderboardId, string leaderboardVersionId);
@@ -128,11 +129,18 @@ namespace HelloWorld
             }
         }
 
+        [CloudCodeFunction("PlayerSignedUp")]
+        public async Task<string> PlayerSignedUp(IExecutionContext context, string playerId, string createdAt)
+        {
+            _logger.LogInformation("Player {PlayerId} signedup at {createdAt}", playerId, createdAt);
+            await _progressService.InitializePlayer(context, playerId);
+            return "ok";
+        }
 
         [CloudCodeFunction("PlayerLoggedIn")]
         public async Task<string> PlayerLoggedIn(IExecutionContext context, string playerId, string lastLoginAt)
         {
-            Thread.Sleep(9000);
+            Thread.Sleep(9000); // @FIXME: Added delay for Game Client to subscribe to wire - any better solutions?
             _logger.LogInformation("Player {PlayerId} logged in at {LastLoginAt}", playerId, lastLoginAt);
             await _notificationService.SendPlayerMessage(context, $"Welcome back! You last logged in at {lastLoginAt}", "WelcomeBack", playerId);
             return "Player message sent";
@@ -146,20 +154,20 @@ namespace HelloWorld
             return "Project message sent";
         }
 
-        [CloudCodeFunction("AddScore")]
-        public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
-        {
-            _logger.LogInformation("Adding Score of {Score} at id: {HoopId}", hoopScore, hoopId);
-            try
-            {
-                return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failure when adding score: {Err}", ex.ToString());
-                throw;
-            }
-        }
+        // [CloudCodeFunction("AddScore")]
+        // public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
+        // {
+        //     _logger.LogInformation("Adding Score of {Score} at id: {HoopId}", hoopScore, hoopId);
+        //     try
+        //     {
+        //         return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError("Failure when adding score: {Err}", ex.ToString());
+        //         throw;
+        //     }
+        // }
 
         [CloudCodeFunction("LeaderboardReset")]
         public async Task<bool> LeaderboardReset(IExecutionContext context, string leaderboardId, string leaderboardVersionId)
