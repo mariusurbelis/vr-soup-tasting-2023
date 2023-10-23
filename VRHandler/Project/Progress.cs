@@ -237,7 +237,7 @@ namespace HelloWorld
                 {
                     sessionStart = sessionStartItem.Modified.Date;
 
-                    if (DateTime.Now > sessionStart?.AddSeconds(sessionLength).AddSeconds(30))
+                    if (DateTime.Now > sessionStart?.AddSeconds(sessionLength).AddSeconds(20))
                     {
                         throw new Exception("End game session submission expired");
                     }
@@ -280,10 +280,11 @@ namespace HelloWorld
                 {
                     throw new Exception("Hoop scores do not match");
                 }
-                if (item.EventTime < sessionStartEpochTime || item.EventTime > sessionEndEpochTime)
-                {
-                    throw new Exception($"Hoop scored outside session window, eventTime: {item.EventTime}, sessionStart: {sessionStartEpochTime}, sessionEnd: {sessionEndEpochTime}");
-                }
+                // @FIXME: Some drift can occur when comparing the game cli time to the session start time
+                // if (item.EventTime < sessionStartEpochTime || item.EventTime > sessionEndEpochTime)
+                // {
+                //     throw new Exception($"Hoop scored outside session window, eventTime: {item.EventTime}, sessionStart: {sessionStartEpochTime}, sessionEnd: {sessionEndEpochTime}");
+                // }
 
                 sessionScore += currentHoop.Score;
                 hoopCount++;
