@@ -154,7 +154,6 @@ namespace HelloWorld
             var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
                 context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                     new(sessionStartKey, DateTime.Now.ToString()),
-                    new(sessionScoreKey, 0),
                 }
             ));
 
@@ -238,7 +237,7 @@ namespace HelloWorld
                 {
                     sessionStart = sessionStartItem.Modified.Date;
 
-                    if (DateTime.Now > sessionStart?.AddSeconds(sessionLength).AddSeconds(5))
+                    if (DateTime.Now > sessionStart?.AddSeconds(sessionLength).AddSeconds(30))
                     {
                         throw new Exception("End game session submission expired");
                     }
