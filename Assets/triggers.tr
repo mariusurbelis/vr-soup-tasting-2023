@@ -6,12 +6,17 @@
       "ActionType": "cloud-code",
       "ActionUrn": "urn:ugs:cloud-code:VRHandler/PlayerLoggedIn"
     },
-    
+    {
+      "Name": "player-sign-up",
+      "EventType": "com.unity.services.player-auth.signed-up.v1",
+      "ActionType": "cloud-code",
+      "ActionUrn": "urn:ugs:cloud-code:VRHandler/PlayerSignedUp"
+    },
     {
       "Name": "leaderboard-reset",
       "EventType": "com.unity.services.leaderboards.reset.v1",
       "ActionType": "cloud-code",
-      "ActionUrn": "urn:ugs:cloud-code:VRHandler/ScoreAdded"
+      "ActionUrn": "urn:ugs:cloud-code:VRHandler/LeaderboardReset"
     },
   ]
 }
