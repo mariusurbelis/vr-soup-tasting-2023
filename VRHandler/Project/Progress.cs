@@ -7,7 +7,7 @@ using Unity.Services.Leaderboards.Model;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System;
-using Unity.Services.CloudCode.Shared;
+using Microsoft.Extensions.Logging;
 using System.Linq;
 
 namespace HelloWorld
@@ -25,87 +25,200 @@ namespace HelloWorld
     public class VRProgressService : IProgressService
     {
         IGameApiClient _apiClient;
-        const string progressXPKey = "progress-xp";
-        const string dailyHoopCountKey = "daily-hoop-count";
+        private readonly ILogger<VRHandlerModule> _logger;
+
+
+        const string configKeySessionLength = "sessionLength";
+        const string configKeyHoops = "hoops";
+        const string configKeyProgressXP = "progressXP";
+
+        const string progressXPKey = "progressXP";
+        const string dailyHoopCountKey = "dailyHoopScores";
+        const string sessionStartKey = "sessionStart";
+        const string sessionScoreKey = "sessionScore";
         const string leaderboardId = "scores";
 
-        public VRProgressService(IGameApiClient apiClient)
+        public VRProgressService(ILogger<VRHandlerModule> logger, IGameApiClient apiClient)
         {
+            _logger = logger;
             _apiClient = apiClient;
         }
 
-        public interface ITask<T>
+        private async Task AwaitBatch(IEnumerable<Func<Task>> tasks)
         {
-            Task<T> Do();
+            try
+            {
+                var tasksToRun = tasks.Select(async fn => await fn());
+                await Task.WhenAll(tasksToRun);
+            }
+            catch (AggregateException ex)
+            {
+                foreach (var innerEx in ex.InnerExceptions)
+                {
+                    //_logger.LogError("Failed to execute task {Task} in the batch. Error: {Error}", innerEx.Source, innerEx.Message);
+                }
+
+                throw new Exception($"Failed to execute a task in the batch. Error: {ex.Message}");
+            }
         }
 
-        public async Task<AddScoreResult> AddScore(IExecutionContext ctx, ScoreEventData data)
+        public async Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext context, string leaderboardId, string leaderboardVersionId)
         {
-            var rcResult = _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(ctx, ctx.AccessToken, ctx.ProjectId,
-                            ctx.ProjectId, null, new List<string> { "progressXP", "spawnDelay", "hoops" });
+            var lbQueryTask = await _apiClient.Leaderboards.GetLeaderboardVersionScoresAsync(
+                context, context.ServiceToken, Guid.Parse(context.ProjectId), leaderboardId, leaderboardVersionId, null, 1);
 
-            var settings = rcResult.Result.Data.Configs.Settings;
-
-            var xp = Convert.ToSingle(settings["progressXP"]);
-            var tick = settings["spawnDelay"];
-            var hoops = JsonSerializer.Deserialize<List<Hoop>>(settings["hoops"].ToString());
-            int score = 0;
-
-            if (hoops == null || hoops.Count <= 0)
+            if (lbQueryTask.Data.Results.Count <= 0)
             {
-                return new AddScoreResult();
+                throw new Exception("No leaderboard entries");
             }
+
+            var entry = lbQueryTask.Data.Results[0];
+
+            return new LeaderboardResetResult
+            {
+                TopScore = entry.Score,
+                PlayerId = entry.PlayerId
+            };
+        }
+
+        public async Task<bool> StartSession(IExecutionContext context)
+        {
+            var csGetTaskResults = new List<Item>();
+            float sessionLength = 0;
+
+            async Task GetRemoteConfig()
+            {
+                var rcResult = await _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId,
+                                context.EnvironmentId, null, new List<string> { configKeySessionLength });
+                var settings = rcResult.Data.Configs.Settings;
+                sessionLength = Convert.ToSingle(settings[configKeySessionLength]);
+            }
+
+            async Task GetCloudSaveData()
+            {
+                var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
+                    context.PlayerId, new List<string> { sessionStartKey });
+                csGetTaskResults = csGetTask.Data.Results;
+            }
+
+            await AwaitBatch(new List<Func<Task>>() { GetCloudSaveData, GetRemoteConfig });
+
+            var sessionStartItem = csGetTaskResults.Find((item) => item.Key == sessionStartKey);
+
+            if (sessionStartItem != null)
+            {
+                var lastModified = sessionStartItem.Modified.Date;
+                if (DateTime.Now < lastModified?.AddSeconds(sessionLength))
+                {
+                    throw new Exception("Session already started");
+                }
+
+                _logger.LogDebug($"Expired session, {lastModified}");
+            }
+
+            _logger.LogDebug($"New session started, {DateTime.Now}");
+
+            var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
+                context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
+                    new(sessionStartKey, DateTime.Now.ToString()),
+                    new(sessionScoreKey, 0),
+                }
+            ));
+
+            return true;
+        }
+
+        public async Task<EndSessionResult> EndSession(IExecutionContext context)
+        {
+            var csGetTaskResults = new List<Item>();
+            var sessionScore = 0;
+            var rank = 0;
+
+            var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
+                    context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey });
+            csGetTaskResults = csGetTask.Data.Results;
+
+            var sessionScoreItem = csGetTaskResults.Find((item) => item.Key == sessionScoreKey);
+
+            if (sessionScoreItem != null)
+            {
+                sessionScore = Convert.ToInt32(sessionScoreItem.Value);
+            }
+
+            if (sessionScore > 0)
+            {
+                var lbUpdateTask = await _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
+                    context, context.AccessToken, Guid.Parse(context.ProjectId), leaderboardId, context.PlayerId, new LeaderboardScore(sessionScore));
+
+                rank = lbUpdateTask.Data.Rank;
+            }
+
+            return new EndSessionResult
+            {
+                Score = sessionScore,
+                Rank = rank
+            };
+        }
+
+
+        public async Task<int> AddScore(IExecutionContext context, ScoreEventData data)
+        {
+            var csGetTaskResults = new List<Item>();
+            float sessionLength = 0;
+            var hoops = new List<Hoop>();
+            int hoopScore = 0;
+            float progressXP = 0;
+            float currentProgressXP = 0;
+            var currentDailyHoopCount = 0;
+            var currentSessionScore = 0;
+
+            async Task GetRemoteConfig()
+            {
+                var rcResult = await _apiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId,
+                                context.EnvironmentId, null, new List<string> { configKeySessionLength, configKeyHoops, configKeyProgressXP });
+                var settings = rcResult.Data.Configs.Settings;
+                sessionLength = Convert.ToSingle(settings[configKeySessionLength]);
+                progressXP = Convert.ToSingle(settings[configKeyProgressXP]);
+                hoops = JsonSerializer.Deserialize<List<Hoop>>(settings[configKeyHoops].ToString());
+            }
+
+            async Task GetCloudSaveData()
+            {
+                var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(context, context.AccessToken, context.ProjectId,
+                    context.PlayerId, new List<string> { sessionStartKey, sessionScoreKey, dailyHoopCountKey, progressXPKey });
+                csGetTaskResults = csGetTask.Data.Results;
+            }
+
+            await AwaitBatch(new List<Func<Task>>() { GetCloudSaveData, GetRemoteConfig });
 
             var currentHoop = hoops.Find(h => h.ID == data.HoopId);
             if (currentHoop == null)
             {
-                return new AddScoreResult();
+                throw new Exception($"Hoop with ID {data.HoopId} not found");
             }
-            score = currentHoop.Score;
-
-            double currentScore = 0;
-            var currentDailyHoopCount = 0;
-            float currentProgressXP = 0;
-            var csGetTaskResults = new List<Item>();
-
-            var tasksFns = new List<Func<Task>>() {
-                new Func<Task>(async () =>
-                {
-                    var csGetTask = await _apiClient.CloudSaveData.GetItemsAsync(ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new List<string> { dailyHoopCountKey, progressXPKey });
-                    csGetTaskResults = csGetTask.Data.Results;
-                    return;
-                }),
-                new Func<Task>(async () =>
-                {
-                    var lbGetTask = await _apiClient.Leaderboards.GetLeaderboardPlayerScoreAsync(ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId);
-                    currentScore = lbGetTask.Data.Score;
-                    return;
-                })
-            };
-
-            var tasks = tasksFns.Select(async p =>
+            hoopScore = currentHoop.Score;
+            if (hoopScore != data.HoopScore)
             {
-                try
-                {
-                    await p();
-                }
-                catch (Exception ex)
-                {
-                    // TODO: Handle the exceptions
-                    // Leaderboards request will throw an API Exception if the player has set to submit a score
-                }
-                return Task.CompletedTask;
-            });
-
-            // TODO: Attempted to implement something following https://thesharperdev.com/csharps-whenall-and-exception-handling/ though the attempt feels a little ugly
-            // The idea here is to do a number of async requests concurrently, but as some can throw an exception we want to check whether
-            // the exception can be ignored or we need to rethrow it.
-            await Task.WhenAll(tasks);
+                throw new Exception("Hoop scores do not match");
+            }
 
             if (csGetTaskResults.Count > 0)
             {
                 var dailyHoopCountItem = csGetTaskResults.Find((item) => item.Key == dailyHoopCountKey);
                 var progressXPItem = csGetTaskResults.Find((item) => item.Key == progressXPKey);
+                var sessionScoreItem = csGetTaskResults.Find((item) => item.Key == sessionScoreKey);
+                var sessionStartItem = csGetTaskResults.Find((item) => item.Key == sessionStartKey);
+
+                if (sessionStartItem != null)
+                {
+                    var lastModified = sessionStartItem.Modified.Date;
+                    _logger.LogDebug($"session info, current: {DateTime.Now} started: {lastModified}, ends: {lastModified?.AddSeconds(sessionLength)}");
+
+                    if (lastModified != null && DateTime.Now > lastModified?.AddMinutes(sessionLength))
+                    {
+                        throw new Exception("Not within session");
+                    }
+                }
 
                 if (dailyHoopCountItem != null)
                 {
@@ -121,25 +234,24 @@ namespace HelloWorld
                 {
                     currentProgressXP = Convert.ToSingle(progressXPItem.Value);
                 }
+
+                if (sessionScoreItem != null)
+                {
+                    currentSessionScore = Convert.ToInt32(sessionScoreItem.Value);
+                }
             }
 
-            var csUpdateTask = _apiClient.CloudSaveData.SetItemBatchAsync(
-                ctx, ctx.AccessToken, ctx.ProjectId, ctx.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
+            var score = currentSessionScore + hoopScore;
+
+            var csUpdateTask = await _apiClient.CloudSaveData.SetItemBatchAsync(
+                context, context.AccessToken, context.ProjectId, context.PlayerId, new SetItemBatchBody(new List<SetItemBody>{
                     new(dailyHoopCountKey, currentDailyHoopCount + 1),
-                    new(progressXPKey, currentProgressXP + xp)
+                    new(progressXPKey, currentProgressXP + progressXP),
+                    new(sessionScoreKey, score),
                 }
             ));
 
-            var lbUpdateTask = _apiClient.Leaderboards.AddLeaderboardPlayerScoreAsync(
-                ctx, ctx.AccessToken, Guid.Parse(ctx.ProjectId), leaderboardId, ctx.PlayerId, new LeaderboardScore(currentScore + score));
-
-            await Task.WhenAll(Task.Run(() => csUpdateTask), Task.Run(() => lbUpdateTask));
-
-            return new AddScoreResult
-            {
-                Score = lbUpdateTask.Result.Data.Score,
-                Rank = lbUpdateTask.Result.Data.Rank
-            };
+            return score;
         }
     }
 }

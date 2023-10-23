@@ -11,7 +11,11 @@ namespace HelloWorld
 {
     public interface IProgressService
     {
-        Task<AddScoreResult> AddScore(IExecutionContext ctx, ScoreEventData data);
+        Task<bool> StartSession(IExecutionContext ctx);
+        Task<int> AddScore(IExecutionContext ctx, ScoreEventData data);
+        Task<EndSessionResult> EndSession(IExecutionContext ctx);
+
+        Task<LeaderboardResetResult> LeaderboardReset(IExecutionContext ctx, string leaderboardId, string leaderboardVersionId);
     }
 
     public interface INotificationService
@@ -32,10 +36,17 @@ namespace HelloWorld
         public long EventTime { get; set; }
     }
 
-    public class AddScoreResult
+    public class EndSessionResult
     {
         public double Score { get; set; }
         public int Rank { get; set; }
+    }
+
+    public class LeaderboardResetResult
+    {
+        public double TopScore { get; set; }
+
+        public string PlayerId { get; set; }
     }
 
     public class VRHandlerModule
@@ -71,6 +82,7 @@ namespace HelloWorld
         {
             _logger.LogInformation("Player {PlayerId} started the game", playerId);
             // TODO: reset player's sessionScore and sessionTime
+            await _progressService.StartSession(context);
             return "ok";
         }
 
@@ -80,7 +92,22 @@ namespace HelloWorld
             _logger.LogInformation("Player {PlayerId} ended the game", playerId);
             // TODO: validate player's score
             // TODO: submit player's sessionScore to leaderboard
-            return "ok";
+
+            try
+            {
+                var result = await _progressService.EndSession(context);
+
+                if (result.Rank <= 10)
+                {
+                    await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
+                }
+                return "ok";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failure when adding score: {Err}", ex.ToString());
+                throw;
+            }
         }
 
         [CloudCodeFunction("PlayerLoggedIn")]
@@ -100,27 +127,13 @@ namespace HelloWorld
             return "Project message sent";
         }
 
-        [CloudCodeFunction("ScoreAdded")]
-        public async Task<string> ScoreAdded(IExecutionContext context)
-        {
-            _logger.LogInformation("Leaderboard updated");
-            await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
-            return "Update leaderboard message sent";
-        }
-
         [CloudCodeFunction("AddScore")]
-        public async Task<double> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
+        public async Task<int> AddScore(IExecutionContext context, int hoopId, long eventTime, int hoopScore)
         {
             _logger.LogInformation("Adding Score of {Score} at id: {HoopId}", hoopScore, hoopId);
             try
             {
-                var result = await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
-
-                if (result.Rank <= 10)
-                {
-                    await ScoreAdded(context);
-                }
-                return result.Score;
+                return await _progressService.AddScore(context, new ScoreEventData { HoopId = hoopId, EventTime = eventTime, HoopScore = hoopScore });
             }
             catch (Exception ex)
             {
@@ -128,6 +141,28 @@ namespace HelloWorld
                 throw;
             }
 
+        }
+
+        [CloudCodeFunction("LeaderboardReset")]
+        public async Task<bool> LeaderboardReset(IExecutionContext context, string leaderboardId, string leaderboardVersionId)
+        {
+            try
+            {
+                await _notificationService.SendProjectMessage(context, "update-leaderboard", "");
+
+                var result = await _progressService.LeaderboardReset(context, leaderboardId, leaderboardVersionId);
+
+                _logger.LogInformation($"Leaderboard reset: {result.PlayerId} rewarded");
+
+                await _notificationService.SendPlayerMessage(context, "reward", "", result.PlayerId);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failure when handling leaderboard reset: {Err}", ex.ToString());
+                throw;
+            }
         }
     }
 
