@@ -1,4 +1,4 @@
-# Soup Tasting - VR Hoops
+# UGS Soup Tasting 2023 - VR Hoops
 
 This VR game was developed using the Unity VR project template, incorporating various UGS components. Players throw spheres through distant hoops, earning points based on difficulty. Upon signup, player Cloud Save data initializes. During loading, the game fetches configuration from Remote Config, storing hoop details like position, scale, rotation, color, and score. Players commence the game by clicking the "Start Game" button on a floating Game panel near the teleport marker designed for gameplay. Remote Config also manages session length time and sphere spawn delay.
 
